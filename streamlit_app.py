@@ -16,10 +16,13 @@ def load_data():
 df = load_data()
 
 if not df.empty:
-    # Column mapping matching your master export headers
-    fam_col = "AMPLASARE/ TIP USA/ NR CANATURI - REPEZENTARE CONFORM DESEN"
-    type_col = "TIP"
-    mark_col = "INDICATIV USA"
+    # Show columns for debugging if anything goes wrong
+    # st.write("Columns found in file:", list(df.columns))
+
+    # Safe dynamic column mapping (falls back to column positions if header text differs)
+    fam_col = df.columns[0]  # First column: Family
+    type_col = df.columns[1] if len(df.columns) > 1 else df.columns[0]  # Second column: Type
+    mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[2]
 
     # 1. Level 1: Select Family
     families = sorted(df[fam_col].dropna().astype(str).unique())
