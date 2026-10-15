@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.title("🗂️ Master Interactive Door Schedule Explorer")
+st.title("ASX_UM_XX_ALL")
 
 @st.cache_data
 def load_data():
