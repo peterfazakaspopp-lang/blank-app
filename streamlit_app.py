@@ -93,9 +93,10 @@ if not df.empty:
             levels = sorted(list(individual_levels))
             selected_level = st.selectbox("Select Floor:", levels)
             
-            df_filtered = df[df[nivel_col].astype(str).str.contains(re.escape(selected_level), case=False, na=False)]
+            # Use strict word boundary matching to avoid partial substring overlap
+            pattern = r'\b' + re.escape(selected_level) + r'\b'
+            df_filtered = df[df[nivel_col].astype(str).str.contains(pattern, case=False, na=False)]
             
-            # Calculate total count including the 'TOTAL' quantity column if it exists
             total_doors = 0
             for _, r in df_filtered.iterrows():
                 try:
@@ -124,7 +125,9 @@ if not df.empty:
             plots = sorted(list(individual_plots))
             selected_plot = st.selectbox("Select PLOT:", plots)
             
-            df_filtered = df[df[plot_col].astype(str).str.contains(selected_plot, case=False, na=False)]
+            # FIX: Use strict word boundary regex so "PLOT 1" doesn't falsely match inside "PLOT 10" or overlap incorrectly
+            plot_pattern = r'\b' + re.escape(selected_plot) + r'\b'
+            df_filtered = df[df[plot_col].astype(str).str.contains(plot_pattern, case=False, na=False)]
             
             total_doors = 0
             for _, r in df_filtered.iterrows():
