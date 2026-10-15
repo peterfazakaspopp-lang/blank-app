@@ -2,16 +2,16 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.title("🗂️ ASX_UM_XX_ALL")
+st.title("🗂️ Master Interactive Door Schedule Explorer")
 
 @st.cache_data
 def load_data():
     file_path = "PLOT_MASTER.tsv"
     if os.path.exists(file_path):
-        # FIX: Use utf-8-sig to correctly decode checkmarks and strip BOM headers
         df = pd.read_csv(file_path, sep="\t", encoding="utf-8-sig")
         if "Family" in df.columns:
-            df = df[~df["Family"].astype(str).str.contains("Grand total|Total|Family", case=False, na=False)]
+            # Filter out totals, header strings, and "Linked Revit Model"
+            df = df[~df["Family"].astype(str).str.contains("Grand total|Total|Family|Linked Revit Model", case=False, na=False)]
         return df
     else:
         st.error(f"File not found: {file_path}. Please upload PLOT_MASTER.tsv to your GitHub repository.")
@@ -24,7 +24,7 @@ if not df.empty:
     type_col = "TIP" if "TIP" in df.columns else df.columns[1]
     mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
 
-    families = sorted([str(x) for x in df[fam_col].dropna().unique() if str(x).strip() and "total" not in str(x).lower()])
+    families = sorted([str(x) for x in df[fam_col].dropna().unique() if str(x).strip() and "total" not in str(x).lower() and "linked revit model" not in str(x).lower()])
     
     if families:
         selected_family = st.selectbox("Family:", families)
@@ -60,5 +60,6 @@ if not df.empty:
                     col4.checkbox("MDA", value=is_checked(row_data.get("MDA", "")), key=f"mda_{selected_door}")
                     col5.checkbox("ER", value=is_checked(row_data.get("ER", "")), key=f"er_{selected_door}")
 
-                    with st.expander("🔍 View Raw Row Data from TSV"):
+                    # Raw Data Debug Expander expanded by default
+                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
                         st.write(row_data.to_dict())
