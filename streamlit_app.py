@@ -31,6 +31,12 @@ if not df.empty:
     df["Clean_Family"] = df[fam_col].astype(str).str.upper()
     df["Clean_Type"] = df[type_col].astype(str).str.upper()
 
+    # Ensure TOTAL column is numeric for accurate counting
+    if "TOTAL" in df.columns:
+        df["Numeric_Total"] = pd.to_numeric(df["TOTAL"], errors="coerce").fillna(1)
+    else:
+        df["Numeric_Total"] = 1
+
     main_col, side_col = st.columns([2, 1])
 
     with main_col:
@@ -93,22 +99,17 @@ if not df.empty:
             levels = sorted(list(individual_levels))
             selected_level = st.selectbox("Select Floor:", levels)
             
-            # Use strict word boundary matching to avoid partial substring overlap
             pattern = r'\b' + re.escape(selected_level) + r'\b'
             df_filtered = df[df[nivel_col].astype(str).str.contains(pattern, case=False, na=False)]
             
-            total_doors = 0
-            for _, r in df_filtered.iterrows():
-                try:
-                    qty = int(r.get("TOTAL", 1))
-                except:
-                    qty = 1
-                total_doors += qty
+            # Sum up the exact numeric TOTAL values for these filtered rows
+            total_doors = int(df_filtered["Numeric_Total"].sum())
 
             st.write(f"**Doors on {selected_level} (Total Instances: {total_doors}):**")
             
             for _, r in df_filtered.iterrows():
-                st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')})")
+                qty = int(r.get("Numeric_Total", 1))
+                st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')}) [Qty: {qty}]")
 
         elif filter_mode == "PLOT number" and plot_col:
             individual_plots = set()
@@ -125,19 +126,14 @@ if not df.empty:
             plots = sorted(list(individual_plots))
             selected_plot = st.selectbox("Select PLOT:", plots)
             
-            # FIX: Use strict word boundary regex so "PLOT 1" doesn't falsely match inside "PLOT 10" or overlap incorrectly
             plot_pattern = r'\b' + re.escape(selected_plot) + r'\b'
             df_filtered = df[df[plot_col].astype(str).str.contains(plot_pattern, case=False, na=False)]
             
-            total_doors = 0
-            for _, r in df_filtered.iterrows():
-                try:
-                    qty = int(r.get("TOTAL", 1))
-                except:
-                    qty = 1
-                total_doors += qty
+            # Sum up the exact numeric TOTAL values for these filtered rows
+            total_doors = int(df_filtered["Numeric_Total"].sum())
 
             st.write(f"**Doors in {selected_plot} (Total Instances: {total_doors}):**")
             
             for _, r in df_filtered.iterrows():
-                st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')})")
+                qty = int(r.get("Numeric_Total", 1))
+                st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')}) [Qty: {qty}]")
