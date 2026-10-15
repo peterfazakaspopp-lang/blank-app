@@ -45,11 +45,19 @@ if not df.empty:
     st.divider()
     st.subheader(f"Door Details for: {selected_door}")
 
+    # Helper function to safely check if a cell value means "True / Checked"
+    def is_checked(val):
+        if pd.isna(val):
+            return False
+        v_str = str(val).strip().lower()
+        # Checks for checkmark symbols, yes/da, or active indicators
+        return v_str in ["✓", "yes", "da", "1", "true"] or v_str != "-" and v_str != "x" and v_str != "✗" and v_str != "n/a" and v_str != ""
+
     # 5. Level 4: Interactive Tickboxes for Features (BA, CA, YM, MDA, ER)
     col1, col2, col3, col4, col5 = st.columns(5)
 
-    ba_val = col1.checkbox("BA (Bara antipanica)", value=(str(row_data.get("BA", "")) == "✓"))
-    ca_val = col2.checkbox("CA (Control acces)", value=(str(row_data.get("CA", "")) == "✓"))
-    ym_val = col3.checkbox("YM (Yala masterkey)", value=(str(row_data.get("YM", "")) == "✓"))
-    mda_val = col4.checkbox("MDA (Auto incendiu)", value=(str(row_data.get("MDA", "")) == "✓"))
-    er_val = col5.checkbox("ER", value=(str(row_data.get("ER", "")) == "✓"))
+    ba_val = col1.checkbox("BA", value=is_checked(row_data.get("BA", "")))
+    ca_val = col2.checkbox("CA", value=is_checked(row_data.get("CA", "")))
+    ym_val = col3.checkbox("YM", value=is_checked(row_data.get("YM", "")))
+    mda_val = col4.checkbox("MDA", value=is_checked(row_data.get("MDA", "")))
+    er_val = col5.checkbox("ER", value=is_checked(row_data.get("ER", "")))
