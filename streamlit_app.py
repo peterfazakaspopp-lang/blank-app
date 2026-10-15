@@ -83,17 +83,20 @@ if not df.empty:
         if filter_mode == "Floor (NIVEL)" and nivel_col:
             individual_levels = set()
             for l_str in df[nivel_col].dropna().astype(str):
-                # Split by newline or standard separators used in unitemized grouping
-                for line in l_str.replace(";", "\n").split("\n"):
-                    clean_line = re.sub(r'\s*\(\d+\)$', '', line).strip()
-                    if clean_line:
-                        individual_levels.add(clean_line)
+                # Use regex to find individual floor patterns like "ETAJ 1", "SUBSOL 1", "PARTER", or codes like "M_L02.A_FFL"
+                # Matches words like ETAJ <num>, SUBSOL <num>, PARTER, or general alphanumeric floor tokens
+                cleaned_str = re.sub(r'\s*\(\d+\)$', '', l_str)
+                # Split by common patterns or spaces intelligently
+                tokens = re.split(r'\s+(?=ETAJ|SUBSOL|PARTER|B01|M_)', cleaned_str, flags=re.IGNORECASE)
+                for t in tokens:
+                    clean_token = t.strip()
+                    if clean_token:
+                        individual_levels.add(clean_token)
             
             levels = sorted(list(individual_levels))
             selected_level = st.selectbox("Select Floor:", levels)
             
-            # Match rows where the level column contains the exact individual floor token
-            df_filtered = df[df[nivel_col].astype(str).str.contains(r'\b' + re.escape(selected_level) + r'\b', case=False, na=False)]
+            df_filtered = df[df[nivel_col].astype(str).str.contains(re.escape(selected_level), case=False, na=False)]
             st.write(f"**Doors on {selected_level} ({len(df_filtered)}):**")
             
             for _, r in df_filtered.iterrows():
