@@ -23,16 +23,20 @@ if not df.empty:
     type_col = "TIP" if "TIP" in df.columns else df.columns[1]
     mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
 
-    families = sorted([str(x) for x in df[fam_col].dropna().unique() if str(x).strip() and "total" not in str(x).lower() and "linked revit model" not in str(x).lower()])
+    # Convert Family and Type columns to uppercase for consistent display
+    df["Clean_Family"] = df[fam_col].astype(str).str.upper()
+    df["Clean_Type"] = df[type_col].astype(str).str.upper()
+
+    families = sorted([x for x in df["Clean_Family"].dropna().unique() if x.strip() and "TOTAL" not in x and "LINKED REVIT MODEL" not in x])
     
     if families:
         selected_family = st.selectbox("Family:", families)
-        df_fam = df[df[fam_col].astype(str) == selected_family]
+        df_fam = df[df["Clean_Family"] == selected_family]
 
-        types_in_fam = sorted([str(x) for x in df_fam[type_col].dropna().unique() if str(x).strip()])
+        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
         if types_in_fam:
             selected_type = st.selectbox("Type:", types_in_fam)
-            df_type = df_fam[df_fam[type_col].astype(str) == selected_type]
+            df_type = df_fam[df_fam["Clean_Type"] == selected_type]
 
             door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
             if door_marks:
