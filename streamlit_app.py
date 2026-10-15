@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 
-st.title("🗂️ ASX_ARH_XX_UM_ALL")
+st.title("🗂️ Master Interactive Door Schedule Explorer")
 
 @st.cache_data
 def load_data():
@@ -10,7 +10,6 @@ def load_data():
     if os.path.exists(file_path):
         df = pd.read_csv(file_path, sep="\t", encoding="utf-8-sig")
         if "Family" in df.columns:
-            # Filter out totals, header strings, and "Linked Revit Model"
             df = df[~df["Family"].astype(str).str.contains("Grand total|Total|Family|Linked Revit Model", case=False, na=False)]
         return df
     else:
@@ -52,13 +51,16 @@ if not df.empty:
                         v_str = str(val).strip().lower()
                         return v_str in ["✓", "yes", "da", "1", "true", "x"]
 
-                    # Checkboxes for Features
-                    col1, col2, col3, col4, col5 = st.columns(5)
-                    col1.checkbox("BA", value=is_checked(row_data.get("BA", "")), key=f"ba_{selected_door}")
-                    col2.checkbox("CA", value=is_checked(row_data.get("CA", "")), key=f"ca_{selected_door}")
-                    col3.checkbox("YM", value=is_checked(row_data.get("YM", "")), key=f"ym_{selected_door}")
-                    col4.checkbox("MDA", value=is_checked(row_data.get("MDA", "")), key=f"mda_{selected_door}")
-                    col5.checkbox("ER", value=is_checked(row_data.get("ER", "")), key=f"er_{selected_door}")
+                    # Display Green Ticks / Red Crosses for features (BA, CA, YM, MDA, ER)
+                    parameters = ["BA", "CA", "YM", "MDA", "ER"]
+                    cols = st.columns(len(parameters))
+
+                    for i, param in enumerate(parameters):
+                        checked = is_checked(row_data.get(param, ""))
+                        if checked:
+                            cols[i].markdown(f"**{param}**: ✅")
+                        else:
+                            cols[i].markdown(f"**{param}**: ❌")
 
                     # Raw Data Debug Expander expanded by default
                     with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
