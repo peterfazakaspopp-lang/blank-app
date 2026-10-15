@@ -3,16 +3,14 @@ import pandas as pd
 import os
 
 st.title("🗂️ Master Interactive Door Schedule Explorer")
-
 @st.cache_data
 def load_data():
-    file_path = "PLOT_MASTER.xls"
+    file_path = "PLOT_MASTER.tsv"  # Updated extension
     if os.path.exists(file_path):
         return pd.read_csv(file_path, sep="\t", encoding="latin-1")
     else:
-        st.error(f"File not found: {file_path}. Please upload PLOT_MASTER.xls to your GitHub repository.")
+        st.error(f"File not found: {file_path}. Please upload PLOT_MASTER.tsv to your GitHub repository.")
         return pd.DataFrame()
-
 df = load_data()
 
 if not df.empty:
