@@ -83,8 +83,8 @@ if not df.empty:
         if filter_mode == "Floor (NIVEL)" and nivel_col:
             individual_levels = set()
             for l_str in df[nivel_col].dropna().astype(str):
-                for line in l_str.split("\n"):
-                    # Strip item counts like " (2)" from level text
+                # Split by newline or standard separators used in unitemized grouping
+                for line in l_str.replace(";", "\n").split("\n"):
                     clean_line = re.sub(r'\s*\(\d+\)$', '', line).strip()
                     if clean_line:
                         individual_levels.add(clean_line)
@@ -92,7 +92,8 @@ if not df.empty:
             levels = sorted(list(individual_levels))
             selected_level = st.selectbox("Select Floor:", levels)
             
-            df_filtered = df[df[nivel_col].astype(str).str.contains(selected_level, case=False, na=False)]
+            # Match rows where the level column contains the exact individual floor token
+            df_filtered = df[df[nivel_col].astype(str).str.contains(r'\b' + re.escape(selected_level) + r'\b', case=False, na=False)]
             st.write(f"**Doors on {selected_level} ({len(df_filtered)}):**")
             
             for _, r in df_filtered.iterrows():
@@ -101,7 +102,6 @@ if not df.empty:
         elif filter_mode == "Plot (FT RAL)" and plot_col:
             individual_plots = set()
             for p_str in df[plot_col].dropna().astype(str):
-                # Extract clean individual plots like "PLOT 1", "PLOT 2" using regex
                 matches = re.findall(r'PLOT\s*\d+', p_str, re.IGNORECASE)
                 if matches:
                     for m in matches:
