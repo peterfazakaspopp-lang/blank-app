@@ -6,14 +6,11 @@ st.title("🗂️ Interactive Door Schedule Explorer")
 
 @st.cache_data
 def load_data():
-    # 👉 If you put PLOT_1.xls in the root directory of your GitHub repo:
     file_path = "PLOT_1.xls"
     
-    # 👉 If you put it inside a "data" folder in GitHub, use this instead:
-    # file_path = "data/PLOT_1.xls"
-    
     if os.path.exists(file_path):
-        df = pd.read_csv(file_path, sep="\t")
+        # Explicitly pass encoding='utf-8-sig' to match your Dynamo export format
+        df = pd.read_csv(file_path, sep="\t", encoding="utf-8-sig")
         return df
     else:
         st.error(f"File not found: {file_path}. Please make sure it is uploaded to your GitHub repository.")
