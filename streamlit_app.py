@@ -41,20 +41,36 @@ if not df.empty:
     # 3. Level 3: Door Mark Selection
     door_marks = sorted(df_type[mark_col].dropna().astype(str).unique())
     selected_door = st.selectbox("Door Mark:", door_marks)
-
-    # Get exact row data for the selected configuration
+# Get exact row data for the selected configuration
     row_data = df_type[df_type[mark_col].astype(str) == selected_door].iloc[0]
 
     st.divider()
     st.subheader(f"Parameters for Door Mark: {selected_door}")
 
-  # Helper function to evaluate checkboxes strictly
+    # Helper function that catches checkmarks and any non-negative indicators
     def is_checked(val):
         if pd.isna(val):
             return False
-        v_str = str(val).strip().lower()
-        # Only check if it contains explicit affirmative markers
-        return v_str in ["✓", "yes", "da", "1", "true", "x"]
+        v_str = str(val).strip()
+        # Returns True if it's a checkmark, '1', 'True', 'yes', 'da', or anything other than cross/dash/empty
+        if v_str in ["✓", "1", "True", "true", "yes", "da"]:
+            return True
+        if v_str in ["✗", "x", "-", "N/A", "n/a", ""]:
+            return False
+        return len(v_str) > 0  # Fallback if any custom text/value exists
+
+    # 4. Level 4: Interactive Tickboxes for Features (BA, CA, YM, MDA, ER)
+    col1, col2, col3, col4, col5 = st.columns(5)
+
+    ba_val = col1.checkbox("BA", value=is_checked(row_data.get("BA", "")))
+    ca_val = col2.checkbox("CA", value=is_checked(row_data.get("CA", "")))
+    ym_val = col3.checkbox("YM", value=is_checked(row_data.get("YM", "")))
+    mda_val = col4.checkbox("MDA", value=is_checked(row_data.get("MDA", "")))
+    er_val = col5.checkbox("ER", value=is_checked(row_data.get("ER", "")))
+    
+    # Optional debug expander to verify exact values coming from the file
+    with st.expander("🔍 View Raw Row Data (Debug)"):
+        st.write(row_data)
         
     # 4. Level 4: Interactive Tickboxes for Features (BA, CA, YM, MDA, ER)
     col1, col2, col3, col4, col5 = st.columns(5)
