@@ -48,13 +48,14 @@ if not df.empty:
     st.divider()
     st.subheader(f"Parameters for Door Mark: {selected_door}")
 
-    # Helper function to evaluate checkboxes safely
+  # Helper function to evaluate checkboxes strictly
     def is_checked(val):
         if pd.isna(val):
             return False
         v_str = str(val).strip().lower()
-        return v_str in ["✓", "yes", "da", "1", "true"] or (v_str not in ["-", "x", "✗", "n/a", ""])
-
+        # Only check if it contains explicit affirmative markers
+        return v_str in ["✓", "yes", "da", "1", "true", "x"]
+        
     # 4. Level 4: Interactive Tickboxes for Features (BA, CA, YM, MDA, ER)
     col1, col2, col3, col4, col5 = st.columns(5)
 
