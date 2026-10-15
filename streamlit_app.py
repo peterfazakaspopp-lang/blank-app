@@ -8,7 +8,8 @@ st.title("🗂️ Master Interactive Door Schedule Explorer")
 def load_data():
     file_path = "PLOT_MASTER.tsv"
     if os.path.exists(file_path):
-        df = pd.read_csv(file_path, sep="\t", encoding="latin-1")
+        # FIX: Use utf-8-sig to correctly decode checkmarks and strip BOM headers
+        df = pd.read_csv(file_path, sep="\t", encoding="utf-8-sig")
         if "Family" in df.columns:
             df = df[~df["Family"].astype(str).str.contains("Grand total|Total|Family", case=False, na=False)]
         return df
@@ -49,9 +50,9 @@ if not df.empty:
                         if pd.isna(val):
                             return False
                         v_str = str(val).strip().lower()
-                        # Catch any checkmark, 1, true, yes, or non-empty character flags
-                        return v_str in ["✓", "yes", "da", "1", "true", "x"] or len(v_str) > 0
+                        return v_str in ["✓", "yes", "da", "1", "true", "x"]
 
+                    # Checkboxes for Features
                     col1, col2, col3, col4, col5 = st.columns(5)
                     col1.checkbox("BA", value=is_checked(row_data.get("BA", "")), key=f"ba_{selected_door}")
                     col2.checkbox("CA", value=is_checked(row_data.get("CA", "")), key=f"ca_{selected_door}")
@@ -59,6 +60,5 @@ if not df.empty:
                     col4.checkbox("MDA", value=is_checked(row_data.get("MDA", "")), key=f"mda_{selected_door}")
                     col5.checkbox("ER", value=is_checked(row_data.get("ER", "")), key=f"er_{selected_door}")
 
-                    # --- DEBUG SECTION ---
                     with st.expander("🔍 View Raw Row Data from TSV"):
                         st.write(row_data.to_dict())
