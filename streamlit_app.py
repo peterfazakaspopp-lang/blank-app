@@ -78,15 +78,12 @@ if not df.empty:
 
     with side_col:
         st.subheader("📍 Quick Availability")
-        filter_mode = st.radio("Group By:", ["Floor (NIVEL)", "Plot (FT RAL)"])
+        filter_mode = st.radio("Group By:", ["Floor (NIVEL)", "PLOT number"])
 
         if filter_mode == "Floor (NIVEL)" and nivel_col:
             individual_levels = set()
             for l_str in df[nivel_col].dropna().astype(str):
-                # Use regex to find individual floor patterns like "ETAJ 1", "SUBSOL 1", "PARTER", or codes like "M_L02.A_FFL"
-                # Matches words like ETAJ <num>, SUBSOL <num>, PARTER, or general alphanumeric floor tokens
                 cleaned_str = re.sub(r'\s*\(\d+\)$', '', l_str)
-                # Split by common patterns or spaces intelligently
                 tokens = re.split(r'\s+(?=ETAJ|SUBSOL|PARTER|B01|M_)', cleaned_str, flags=re.IGNORECASE)
                 for t in tokens:
                     clean_token = t.strip()
@@ -97,12 +94,22 @@ if not df.empty:
             selected_level = st.selectbox("Select Floor:", levels)
             
             df_filtered = df[df[nivel_col].astype(str).str.contains(re.escape(selected_level), case=False, na=False)]
-            st.write(f"**Doors on {selected_level} ({len(df_filtered)}):**")
+            
+            # Calculate total count including the 'TOTAL' quantity column if it exists
+            total_doors = 0
+            for _, r in df_filtered.iterrows():
+                try:
+                    qty = int(r.get("TOTAL", 1))
+                except:
+                    qty = 1
+                total_doors += qty
+
+            st.write(f"**Doors on {selected_level} (Total Instances: {total_doors}):**")
             
             for _, r in df_filtered.iterrows():
                 st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')})")
 
-        elif filter_mode == "Plot (FT RAL)" and plot_col:
+        elif filter_mode == "PLOT number" and plot_col:
             individual_plots = set()
             for p_str in df[plot_col].dropna().astype(str):
                 matches = re.findall(r'PLOT\s*\d+', p_str, re.IGNORECASE)
@@ -115,10 +122,19 @@ if not df.empty:
                             individual_plots.add(token.strip().upper())
             
             plots = sorted(list(individual_plots))
-            selected_plot = st.selectbox("Select Plot:", plots)
+            selected_plot = st.selectbox("Select PLOT:", plots)
             
             df_filtered = df[df[plot_col].astype(str).str.contains(selected_plot, case=False, na=False)]
-            st.write(f"**Doors in {selected_plot} ({len(df_filtered)}):**")
+            
+            total_doors = 0
+            for _, r in df_filtered.iterrows():
+                try:
+                    qty = int(r.get("TOTAL", 1))
+                except:
+                    qty = 1
+                total_doors += qty
+
+            st.write(f"**Doors in {selected_plot} (Total Instances: {total_doors}):**")
             
             for _, r in df_filtered.iterrows():
                 st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')})")
