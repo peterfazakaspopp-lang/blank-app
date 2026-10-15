@@ -36,14 +36,14 @@ if not df.empty:
 
             door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
             if door_marks:
-                selected_door = st.selectbox("Door Mark:", door_marks)
+                selected_door = st.selectbox("INDICATIV:", door_marks)
 
                 matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
                 if not matching_rows.empty:
                     row_data = matching_rows.iloc[0]
 
                     st.divider()
-                    st.subheader(f"Parameters for Door Mark: {selected_door}")
+                    st.subheader(f"Parameters for INDICATIV: {selected_door}")
 
                     def is_checked(val):
                         if pd.isna(val):
