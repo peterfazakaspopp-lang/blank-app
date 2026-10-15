@@ -27,11 +27,9 @@ if not df.empty:
     nivel_col = "NIVEL" if "NIVEL" in df.columns else None
     plot_col = "FT RAL" if "FT RAL" in df.columns else None
 
-    # Convert Family and Type columns to uppercase for consistent display
     df["Clean_Family"] = df[fam_col].astype(str).str.upper()
     df["Clean_Type"] = df[type_col].astype(str).str.upper()
 
-    # Ensure TOTAL column is numeric for accurate counting
     if "TOTAL" in df.columns:
         df["Numeric_Total"] = pd.to_numeric(df["TOTAL"], errors="coerce").fillna(1)
     else:
@@ -89,24 +87,26 @@ if not df.empty:
         if filter_mode == "Floor (NIVEL)" and nivel_col:
             individual_levels = set()
             for l_str in df[nivel_col].dropna().astype(str):
-                cleaned_str = re.sub(r'\s*\(\d+\)$', '', l_str)
-                tokens = re.split(r'\s+(?=ETAJ|SUBSOL|PARTER|B01|M_)', cleaned_str, flags=re.IGNORECASE)
-                for t in tokens:
-                    clean_token = t.strip()
-                    if clean_token:
-                        individual_levels.add(clean_token)
+                for line in l_str.replace(";", "\n").split("\n"):
+                    clean_line = re.sub(r'\s*\(\d+\)$', '', line).strip()
+                    if clean_line:
+                        for token in clean_line.split():
+                            if token.upper() not in ["ETAJ", "SUBSOL"]:
+                                individual_levels.add(token.upper())
             
             levels = sorted(list(individual_levels))
             selected_level = st.selectbox("Select Floor:", levels)
             
-            pattern = r'\b' + re.escape(selected_level) + r'\b'
-            df_filtered = df[df[nivel_col].astype(str).str.contains(pattern, case=False, na=False)]
-            
-            # Sum up the exact numeric TOTAL values for these filtered rows
+            # Strict token-level matching to prevent multi-counting
+            def match_floor(val):
+                if pd.isna(val): return False
+                tokens = str(val).upper().split()
+                return selected_level in tokens
+
+            df_filtered = df[df[nivel_col].apply(match_floor)]
             total_doors = int(df_filtered["Numeric_Total"].sum())
 
             st.write(f"**Doors on {selected_level} (Total Instances: {total_doors}):**")
-            
             for _, r in df_filtered.iterrows():
                 qty = int(r.get("Numeric_Total", 1))
                 st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')}) [Qty: {qty}]")
@@ -126,14 +126,17 @@ if not df.empty:
             plots = sorted(list(individual_plots))
             selected_plot = st.selectbox("Select PLOT:", plots)
             
-            plot_pattern = r'\b' + re.escape(selected_plot) + r'\b'
-            df_filtered = df[df[plot_col].astype(str).str.contains(plot_pattern, case=False, na=False)]
-            
-            # Sum up the exact numeric TOTAL values for these filtered rows
+            # Strict token-level matching so a row is only counted if it explicitly targets this exact plot token
+            def match_plot(val):
+                if pd.isna(val): return False
+                # Split cell text into individual plot words/tokens
+                tokens = re.findall(r'PLOT\s*\d+|\b\d+\b', str(val), re.IGNORECASE)
+                return selected_plot.upper() in [t.upper() for t in tokens]
+
+            df_filtered = df[df[plot_col].apply(match_plot)]
             total_doors = int(df_filtered["Numeric_Total"].sum())
 
             st.write(f"**Doors in {selected_plot} (Total Instances: {total_doors}):**")
-            
             for _, r in df_filtered.iterrows():
                 qty = int(r.get("Numeric_Total", 1))
                 st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')}) [Qty: {qty}]")
