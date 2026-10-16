@@ -20,7 +20,6 @@ def load_data():
 
 df = load_data()
 
-# Initialize session state for search mode
 if "search_active" not in st.session_state:
     st.session_state.search_active = False
 
@@ -142,4 +141,28 @@ if not df.empty:
                     row_data = matching_rows.iloc[0]
 
                     st.divider()
-                    st.subheader(f"Parameters for INDICATIV: {
+                    st.subheader(f"Parameters for INDICATIV: {selected_door}")
+
+                    parameters = ["BA", "CA", "YM", "MDA", "ER"]
+                    param_descriptions = {
+                        "BA": "BARA ANTIPANICA",
+                        "CA": "CONTROL ACCES",
+                        "YM": "YALA MASTERKEY",
+                        "MDA": "DESCHIDERE AUTOMATA INCENDIU",
+                        "ER": "ELECTROMAGNET DE RETINERE"
+                    }
+                    
+                    cols = st.columns(len(parameters))
+                    for i, param in enumerate(parameters):
+                        checked = is_checked(row_data.get(param, ""))
+                        status_icon = "✅" if checked else "❌"
+                        desc = param_descriptions.get(param, "")
+                        
+                        cols[i].markdown(
+                            f"**{param}**: {status_icon}<br>"
+                            f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
+                            unsafe_allow_html=True
+                        )
+
+                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
+                        st.write(row_data.to_dict())
