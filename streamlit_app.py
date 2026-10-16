@@ -1,118 +1,169 @@
-# -*- coding: utf-8 -*-
-import clr
+import streamlit as st
+import pandas as pd
 import os
+import re
 
-clr.AddReference('RevitAPI')
-clr.AddReference('RevitServices')
-from Autodesk.Revit.DB import *
-from RevitServices.Persistence import DocumentManager
-from System.Collections.Generic import List
+st.set_page_config(layout="wide")
+st.title("ASX_UM_XX_ALL")
 
-doc = DocumentManager.Instance.CurrentDBDocument
-view = doc.ActiveView
+@st.cache_data
+def load_data():
+    file_path = "PLOT_MASTER.tsv"
+    if os.path.exists(file_path):
+        df = pd.read_csv(file_path, sep="\t", encoding="utf-8-sig")
+        if "Family" in df.columns:
+            df = df[~df["Family"].astype(str).str.contains("Grand total|Total|Family|Linked Revit Model", case=False, na=False)]
+        return df
+    else:
+        st.error(f"File not found: {file_path}. Please upload PLOT_MASTER.tsv to your GitHub repository.")
+        return pd.DataFrame()
 
-def get_dim(item, t, p1, p2, p3):
-    for n in [p1, p2, p3]:
-        for o in [item, t]:
-            p = o.LookupParameter(n)
-            if p and p.HasValue and p.AsDouble() > 0: return p.AsDouble()
-    return 0.0
+df = load_data()
 
-try:
-    doors = FilteredElementCollector(doc).OfCategory(BuiltInCategory.OST_Doors).WhereElementIsNotElementType()
-    data, isolate_ids = [], List[ElementId]()
+# Initialize session state for search mode
+if "search_active" not in st.session_state:
+    st.session_state.search_active = False
+
+if not df.empty:
+    fam_col = "Family" if "Family" in df.columns else df.columns[0]
+    type_col = "TIP" if "TIP" in df.columns else df.columns[1]
+    mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
+    fire_col = "REZISTENTA FOC" if "REZISTENTA FOC" in df.columns else None
+
+    df["Clean_Family"] = df[fam_col].astype(str).str.upper()
+    df["Clean_Type"] = df[type_col].astype(str).str.upper()
+
+    def is_checked(val):
+        if pd.isna(val):
+            return False
+        v_str = str(val).strip().lower()
+        return v_str in ["✓", "yes", "da", "1", "true", "x"]
+
+    # --- SIDEBAR SEARCH & NAVIGATION ---
+    st.sidebar.subheader("🔍 Advanced Door Search")
     
-    for item in doors:
-        try:
-            owning_doc = item.Document
-            t = owning_doc.GetElement(item.GetTypeId())
-            if not t: continue
-            
-            tm = str(t.LookupParameter("Type Mark").AsString() if t.LookupParameter("Type Mark") else "")
-            if "UM" not in tm.upper(): continue
-            
-            fam, tn = str(t.FamilyName), str(t.get_Parameter(BuiltInParameter.ALL_MODEL_TYPE_NAME).AsString())
-            wf = get_dim(item, t, "Rough Width", "Width", "Latime")
-            hf = get_dim(item, t, "Rough Height", "Height", "Inaltime")
-            w_mm, h_mm = round(wf * 304.8, 0), round(hf * 304.8, 0)
-            
-            cwp = item.LookupParameter("Clear Width") or t.LookupParameter("Clear Width")
-            chp = item.LookupParameter("Clear Height") or t.LookupParameter("Clear Height")
-            cw = round(cwp.AsDouble() * 0.3048, 2) if cwp else round(wf * 0.3048, 2)
-            ch = round(chp.AsDouble() * 0.3048, 2) if chp else round(hf * 0.3048, 2)
-            
-            sd = str(item.LookupParameter("AS_sens-deschidere").AsString() if item.LookupParameter("AS_sens-deschidere") else "N/A")
-            fr_p = item.LookupParameter("Fire Rating") or t.LookupParameter("Fire Rating")
-            fr = str(fr_p.AsString()) if fr_p and fr_p.HasValue else "N/A"
-            
-            lvl = owning_doc.GetElement(item.LevelId)
-            ln = str(lvl.Name) if lvl else "N/A"
-            gp = str(item.LookupParameter("AS_grosime-perete").AsValueString() if item.LookupParameter("AS_grosime-perete") else "N/A")
-            
-            rm_f = str(item.LookupParameter("AS_LINKED-FROM").AsString() if item.LookupParameter("AS_LINKED-FROM") else "N/A")
-            rm_t = str(item.LookupParameter("AS_LINKED-TO").AsString() if item.LookupParameter("AS_LINKED-TO") else "N/A")
-            
-            wt = "BA"
-            if hasattr(item, "Host") and item.Host:
-                hw = owning_doc.GetElement(item.Host.GetTypeId())
-                if hw and hw.LookupParameter("Type Mark") and hw.LookupParameter("Type Mark").HasValue:
-                    wt = str(hw.LookupParameter("Type Mark").AsString()).strip() or "BA"
-                    
-            bz_p = item.LookupParameter("AS_bronze-C34") or item.LookupParameter("AS_bronz-C34") or t.LookupParameter("AS_bronz-C34")
-            bz = "-"
-            if bz_p and bz_p.HasValue:
-                v_str = str(bz_p.AsValueString() or bz_p.AsString()).lower()
-                if "yes" in v_str or "da" in v_str or "1" in v_str: bz = rm_f
-                
-            ft_ral_p = item.LookupParameter("FT RAL") or t.LookupParameter("FT RAL")
-            ft_ral = str(ft_ral_p.AsString() or ft_ral_p.AsValueString()) if ft_ral_p and ft_ral_p.HasValue else "N/A"
-                
-            flags = []
-            for p in ["AS_Bara_anti-panica", "AS_control-acces", "AS_yala-masterkey", "Deschidere automata in caz de incendiu", "Inchidere automata in caz de incendiu"]:
-                param = item.LookupParameter(p) or t.LookupParameter(p)
-                val = "✗"
-                if param and param.HasValue:
-                    v = str(param.AsValueString()).lower()
-                    if "yes" in v or "da" in v or param.AsInteger() == 1 or "1" in v: val = "✓"
-                flags.append(val)
-                
-            cluj_p = item.LookupParameter("CLUJ_Part") or t.LookupParameter("CLUJ_Part")
-            cluj_val = str(cluj_p.AsString()) if cluj_p and cluj_p.HasValue else "N/A"
-            
-            # --- READ EXISTING MARK DIRECTLY FROM REVIT ---
-            mark_p = item.LookupParameter("AS_door-mark")
-            existing_mark = str(mark_p.AsString()) if mark_p and mark_p.HasValue else "UNMARKED"
-                
-            if owning_doc.IsLinked == False: isolate_ids.Add(item.Id)
-            
-            data.append({'elem': item, 'fam': fam, 'w_mm': w_mm, 'h_mm': h_mm, 'tn': tn, 'sd': sd, 'cw': cw, 'ch': ch, 'fr': fr, 'ln': ln, 'flags': flags, 'gp': gp, 'wt': wt, 'rm_f': rm_f, 'rm_t': rm_t, 'bz': bz, 'tm': tm, 'cluj': cluj_val, 'ft_ral': ft_ral, 'mark': existing_mark})
-        except: continue
+    families = sorted([x for x in df["Clean_Family"].dropna().unique() if x.strip() and "TOTAL" not in x and "LINKED REVIT MODEL" not in x])
+    selected_sidebar_family = st.sidebar.selectbox("Select Family for Search:", families)
+    
+    df_sidebar_fam = df[df["Clean_Family"] == selected_sidebar_family]
 
-    if len(data) > 0:
-        headers = ["Family", "TIP", "INDICATIV USA", "SENS DESCHIDERE", "L (m)", "H (m)", "REZISTENTA FOC", "NIVEL", "FT RAL", "TOTAL", "BA", "CA", "YM", "MDA", "ER", "GROS. PERETE", "TIP PERETE", "AS_LINKED-FROM", "AS_LINKED-TO", "FÎ RAL: C34", "CLUJ_Part"]
-        matrix = [headers]
+    dim_query = st.sidebar.text_input("Dimension Search (e.g., 1000x2160):", "").strip().lower()
+
+    fire_ratings = ["All"] + sorted([str(x) for x in df_sidebar_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col else ["All"]
+    selected_fire = st.sidebar.selectbox("Fire Rating / Type (UM, UM-C, EI60, etc.):", fire_ratings)
+
+    st.sidebar.markdown("---")
+    st.sidebar.markdown("**Required Parameters:**")
+    req_ba = st.sidebar.checkbox("BA (BARA ANTIPANICA)")
+    req_ca = st.sidebar.checkbox("CA (CONTROL ACCES)")
+    req_ym = st.sidebar.checkbox("YM (YALA MASTERKEY)")
+    req_mda = st.sidebar.checkbox("MDA (DESCHIDERE AUTOMATA)")
+    req_er = st.sidebar.checkbox("ER (ELECTROMAGNET)")
+
+    search_triggered = st.sidebar.button("🔎 Search Door Configuration")
+    if search_triggered:
+        st.session_state.search_active = True
+
+    # --- MAIN VIEW ---
+    if st.session_state.search_active:
+        if st.button("🔙 Back to Hierarchical Explorer"):
+            st.session_state.search_active = False
+            st.rerun()
+
+        st.subheader(f"Search Results for Family: {selected_sidebar_family}")
         
-        for d in data:
-            f = d['flags']
-            matrix.append([
-                str(d['fam']), str(d['tn']), str(d['mark']), str(d['sd']), str(d['cw']), str(d['ch']), str(d['fr']), 
-                str(d['ln']), str(d['ft_ral']), "1", str(f[0]), str(f[1]), str(f[2]), str(f[3]), str(f[4]), 
-                str(d['gp']), str(d['wt']), str(d['rm_f']), str(d['rm_t']), str(d['bz']), str(d['cluj'])
-            ])
-            
-        output_dir = r"D:\PROIECTE\ASX\Tablouri tamplarie"
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-            
-        file_path = os.path.join(output_dir, "PLOT_MASTER.tsv")
+        sub_df = df_sidebar_fam.copy()
+        if dim_query:
+            sub_df = sub_df[sub_df["Clean_Type"].str.lower().str.contains(dim_query, na=False)]
         
-        with open(file_path, "w", encoding="utf-8-sig") as f:
-            for row in matrix:
-                f.write("\t".join([str(cell).replace("\n", " ") for cell in row]) + "\n")
-                
-        OUT = "Successfully exported " + str(len(data)) + " doors with existing Revit marks to: " + file_path
-    else: 
-        OUT = "Error: No doors matching filters found."
-except Exception as ex:
-    import traceback
-    OUT = "Error: " + str(ex) + "\n" + traceback.format_exc()
+        if selected_fire != "All" and fire_col:
+            sub_df = sub_df[sub_df[fire_col].astype(str).str.lower() == selected_fire.lower()]
+
+        if sub_df.empty:
+            st.warning(f"❌ **The door type does not exist** for family '{selected_sidebar_family}' with dimensions matching '{dim_query}' and fire rating '{selected_fire}'.")
+        else:
+            matched_rows = []
+            for _, r in sub_df.iterrows():
+                match_ba = is_checked(r.get("BA", "")) == req_ba if req_ba else True
+                match_ca = is_checked(r.get("CA", "")) == req_ca if req_ca else True
+                match_ym = is_checked(r.get("YM", "")) == req_ym if req_ym else True
+                match_mda = is_checked(r.get("MDA", "")) == req_mda if req_mda else True
+                match_er = is_checked(r.get("ER", "")) == req_er if req_er else True
+
+                if match_ba and match_ca and match_ym and match_mda and match_er:
+                    matched_rows.append(r)
+
+            if matched_rows:
+                st.success(f"✅ Found {len(matched_rows)} matching door instance(s) with the exact parameter configuration!")
+                for m_row in matched_rows:
+                    t_val = m_row.get(type_col, 'N/A')
+                    m_val = m_row.get(mark_col, 'N/A')
+                    
+                    ba_icon = "✅" if is_checked(m_row.get("BA", "")) else "❌"
+                    ca_icon = "✅" if is_checked(m_row.get("CA", "")) else "❌"
+                    ym_icon = "✅" if is_checked(m_row.get("YM", "")) else "❌"
+                    mda_icon = "✅" if is_checked(m_row.get("MDA", "")) else "❌"
+                    er_icon = "✅" if is_checked(m_row.get("ER", "")) else "❌"
+
+                    st.info(
+                        f"**Type**: `{t_val}`  |  **INDICATIV**: `{m_val}`<br>"
+                        f"&nbsp;&nbsp;&nbsp;&nbsp;**BA**: {ba_icon} &nbsp;|&nbsp; **CA**: {ca_icon} &nbsp;|&nbsp; **YM**: {ym_icon} &nbsp;|&nbsp; **MDA**: {mda_icon} &nbsp;|&nbsp; **ER**: {er_icon}",
+                        icon="🚪"
+                    )
+            else:
+                st.info(f"⚠️ **The door type exists** with those dimensions/fire rating, **but not with all the specific parameters selected**. It needs another code (INDICATIV).")
+                with st.expander("View available types with these dimensions/fire rating"):
+                    for _, r in sub_df.iterrows():
+                        t_val = r.get(type_col, 'N/A')
+                        m_val = r.get(mark_col, 'N/A')
+                        ba_icon = "✅" if is_checked(r.get("BA", "")) else "❌"
+                        ca_icon = "✅" if is_checked(r.get("CA", "")) else "❌"
+                        ym_icon = "✅" if is_checked(r.get("YM", "")) else "❌"
+                        mda_icon = "✅" if is_checked(r.get("MDA", "")) else "❌"
+                        er_icon = "✅" if is_checked(r.get("ER", "")) else "❌"
+                        st.text(f"• Type: {t_val} | INDICATIV: {m_val} [BA:{ba_icon} CA:{ca_icon} YM:{ym_icon} MDA:{mda_icon} ER:{er_icon}]")
+    else:
+        st.subheader("🗂️ Hierarchical Door Explorer")
+        
+        selected_main_family = st.selectbox("Family:", families)
+        df_fam = df[df["Clean_Family"] == selected_main_family]
+
+        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
+        if types_in_fam:
+            selected_type = st.selectbox("Type:", types_in_fam)
+            df_type = df_fam[df_fam["Clean_Type"] == selected_type]
+
+            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
+            if door_marks:
+                selected_door = st.selectbox("INDICATIV:", door_marks)
+
+                matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
+                if not matching_rows.empty:
+                    row_data = matching_rows.iloc[0]
+
+                    st.divider()
+                    st.subheader(f"Parameters for INDICATIV: {selected_door}")
+
+                    parameters = ["BA", "CA", "YM", "MDA", "ER"]
+                    param_descriptions = {
+                        "BA": "BARA ANTIPANICA",
+                        "CA": "CONTROL ACCES",
+                        "YM": "YALA MASTERKEY",
+                        "MDA": "DESCHIDERE AUTOMATA INCENDIU",
+                        "ER": "ELECTROMAGNET DE RETINERE"
+                    }
+                    
+                    cols = st.columns(len(parameters))
+                    for i, param in enumerate(parameters):
+                        checked = is_checked(row_data.get(param, ""))
+                        status_icon = "✅" if checked else "❌"
+                        desc = param_descriptions.get(param, "")
+                        
+                        cols[i].markdown(
+                            f"**{param}**: {status_icon}<br>"
+                            f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
+                            unsafe_allow_html=True
+                        )
+
+                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
+                        st.write(row_data.to_dict())
