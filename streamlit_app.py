@@ -87,11 +87,9 @@ if not df.empty:
         if selected_fire != "All" and fire_col:
             sub_df = sub_df[sub_df[fire_col].astype(str).str.lower() == selected_fire.lower()]
 
-        # Filter by From Room if provided
         if room_from_query and room_from_col:
             sub_df = sub_df[sub_df[room_from_col].astype(str).str.lower().str.contains(room_from_query, na=False)]
 
-        # Filter by To Room if provided
         if room_to_query and room_to_col:
             sub_df = sub_df[sub_df[room_to_col].astype(str).str.lower().str.contains(room_to_query, na=False)]
 
@@ -100,14 +98,12 @@ if not df.empty:
         else:
             matched_rows = []
             for _, r in sub_df.iterrows():
-                # If checkboxes were selected, filter by exact parameter match; otherwise include rows matching the filters
                 match_ba = is_checked(r.get("BA", "")) == req_ba if req_ba else True
                 match_ca = is_checked(r.get("CA", "")) == req_ca if req_ca else True
                 match_ym = is_checked(r.get("YM", "")) == req_ym if req_ym else True
                 match_mda = is_checked(r.get("MDA", "")) == req_mda if req_mda else True
                 match_er = is_checked(r.get("ER", "")) == req_er if req_er else True
 
-                # If all requested checkboxes match (or none were checked)
                 if match_ba and match_ca and match_ym and match_mda and match_er:
                     matched_rows.append(r)
 
@@ -131,4 +127,39 @@ if not df.empty:
         types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
         if types_in_fam:
             selected_type = st.selectbox("Type:", types_in_fam)
-            df_type =
+            df_type = df_fam[df_fam["Clean_Type"] == selected_type]
+
+            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
+            if door_marks:
+                selected_door = st.selectbox("INDICATIV:", door_marks)
+
+                matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
+                if not matching_rows.empty:
+                    row_data = matching_rows.iloc[0]
+
+                    st.divider()
+                    st.subheader(f"Parameters for INDICATIV: {selected_door}")
+
+                    parameters = ["BA", "CA", "YM", "MDA", "ER"]
+                    param_descriptions = {
+                        "BA": "BARA ANTIPANICA",
+                        "CA": "CONTROL ACCES",
+                        "YM": "YALA MASTERKEY",
+                        "MDA": "DESCHIDERE AUTOMATA INCENDIU",
+                        "ER": "ELECTROMAGNET DE RETINERE"
+                    }
+                    
+                    cols = st.columns(len(parameters))
+                    for i, param in enumerate(parameters):
+                        checked = is_checked(row_data.get(param, ""))
+                        status_icon = "✅" if checked else "❌"
+                        desc = param_descriptions.get(param, "")
+                        
+                        cols[i].markdown(
+                            f"**{param}**: {status_icon}<br>"
+                            f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
+                            unsafe_allow_html=True
+                        )
+
+                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
+                        st.write(row_data.to_dict())
