@@ -207,9 +207,13 @@ if not df.empty:
             total_doors = int(df_filtered["Numeric_Total"].sum())
 
             st.write(f"**Doors on {selected_level} (Total Instances: {total_doors}):**")
-            for _, r in df_filtered.iterrows():
-                qty = int(r.get("Numeric_Total", 1))
-                st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')}) [Qty: {qty}]")
+            
+            # Group by Mark and Type to aggregate quantities properly
+            if not df_filtered.empty:
+                grouped_df = df_filtered.groupby([mark_col, type_col], as_index=False)["Numeric_Total"].sum()
+                for _, r in grouped_df.iterrows():
+                    qty = int(r["Numeric_Total"])
+                    st.text(f"• {r[mark_col]} ({r[type_col]}) [Qty: {qty}]")
 
         elif filter_mode == "PLOT number" and plot_col:
             individual_plots = set()
@@ -228,12 +232,18 @@ if not df.empty:
             
             def match_plot(val):
                 if pd.isna(val): return False
-                return selected_plot.upper() in str(val).upper()
+                # Exact word boundary matching for PLOT numbers to avoid partial overlaps
+                pattern = r'\b' + re.escape(selected_plot) + r'\b'
+                return bool(re.search(pattern, str(val), re.IGNORECASE))
 
             df_filtered = df[df[plot_col].apply(match_plot)]
             total_doors = int(df_filtered["Numeric_Total"].sum())
 
             st.write(f"**Doors in {selected_plot} (Total Instances: {total_doors}):**")
-            for _, r in df_filtered.iterrows():
-                qty = int(r.get("Numeric_Total", 1))
-                st.text(f"• {r.get(mark_col, 'N/A')} ({r.get(type_col, 'N/A')}) [Qty: {qty}]")
+            
+            # Group by Mark and Type to aggregate quantities properly
+            if not df_filtered.empty:
+                grouped_df = df_filtered.groupby([mark_col, type_col], as_index=False)["Numeric_Total"].sum()
+                for _, r in grouped_df.iterrows():
+                    qty = int(r["Numeric_Total"])
+                    st.text(f"• {r[mark_col]} ({r[type_col]}) [Qty: {qty}]")
