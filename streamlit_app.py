@@ -29,7 +29,6 @@ if not df.empty:
     type_col = "TIP" if "TIP" in df.columns else df.columns[1]
     mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
     nivel_col = "NIVEL" if "NIVEL" in df.columns else None
-    plot_col = "FT RAL" if "FT RAL" in df.columns else None
     fire_col = "REZISTENTA FOC" if "REZISTENTA FOC" in df.columns else None
 
     df["Clean_Family"] = df[fam_col].astype(str).str.upper()
@@ -182,7 +181,8 @@ if not df.empty:
         st.subheader("📍 Quick Availability")
         
         total_schedule_instances = int(df["Numeric_Total"].sum())
-        st.info(f"📊 **Model Baseline Summary**\n\n• Unique Instances: {len(df)}\n• Total Schedule Instances: {total_schedule_instances}")
+        unique_rows = len(df)
+        st.info(f"📊 **Model Summary**\n\n• Table Rows: {unique_rows}\n• Total Schedule Instances: {total_schedule_instances}")
         
         filter_mode = st.radio("Group By:", ["Floor (NIVEL)", "PLOT number"])
 
@@ -190,60 +190,4 @@ if not df.empty:
             individual_levels = set()
             for l_str in df[nivel_col].dropna().astype(str):
                 for line in l_str.replace(";", "\n").split("\n"):
-                    clean_line = re.sub(r'\s*\(\d+\)$', '', line).strip()
-                    if clean_line:
-                        for token in clean_line.split():
-                            if token.upper() not in ["ETAJ", "SUBSOL"]:
-                                individual_levels.add(token.upper())
-            
-            levels = sorted(list(individual_levels))
-            selected_level = st.selectbox("Select Floor:", levels)
-            
-            def match_floor(val):
-                if pd.isna(val): return False
-                return selected_level.upper() in str(val).upper()
-
-            df_filtered = df[df[nivel_col].apply(match_floor)]
-            total_doors = int(df_filtered["Numeric_Total"].sum())
-
-            st.write(f"**Doors on {selected_level} (Total Instances: {total_doors}):**")
-            
-            # Group by Mark and Type to aggregate quantities properly
-            if not df_filtered.empty:
-                grouped_df = df_filtered.groupby([mark_col, type_col], as_index=False)["Numeric_Total"].sum()
-                for _, r in grouped_df.iterrows():
-                    qty = int(r["Numeric_Total"])
-                    st.text(f"• {r[mark_col]} ({r[type_col]}) [Qty: {qty}]")
-
-        elif filter_mode == "PLOT number" and plot_col:
-            individual_plots = set()
-            for p_str in df[plot_col].dropna().astype(str):
-                matches = re.findall(r'PLOT\s*\d+', p_str, re.IGNORECASE)
-                if matches:
-                    for m in matches:
-                        individual_plots.add(m.upper())
-                else:
-                    for token in p_str.replace(";", ",").replace("\n", " ").split():
-                        if token.strip():
-                            individual_plots.add(token.strip().upper())
-            
-            plots = sorted(list(individual_plots))
-            selected_plot = st.selectbox("Select PLOT:", plots)
-            
-            def match_plot(val):
-                if pd.isna(val): return False
-                # Exact word boundary matching for PLOT numbers to avoid partial overlaps
-                pattern = r'\b' + re.escape(selected_plot) + r'\b'
-                return bool(re.search(pattern, str(val), re.IGNORECASE))
-
-            df_filtered = df[df[plot_col].apply(match_plot)]
-            total_doors = int(df_filtered["Numeric_Total"].sum())
-
-            st.write(f"**Doors in {selected_plot} (Total Instances: {total_doors}):**")
-            
-            # Group by Mark and Type to aggregate quantities properly
-            if not df_filtered.empty:
-                grouped_df = df_filtered.groupby([mark_col, type_col], as_index=False)["Numeric_Total"].sum()
-                for _, r in grouped_df.iterrows():
-                    qty = int(r["Numeric_Total"])
-                    st.text(f"• {r[mark_col]} ({r[type_col]}) [Qty: {qty}]")
+                    clean_line = re.
