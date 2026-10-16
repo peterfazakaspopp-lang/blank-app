@@ -115,8 +115,7 @@ if not df.empty:
             
             def match_floor(val):
                 if pd.isna(val): return False
-                tokens = [t.upper() for t in re.split(r'[\s,\n]+', str(val))]
-                return selected_level in tokens
+                return selected_level.upper() in str(val).upper()
 
             df_filtered = df[df[nivel_col].apply(match_floor)]
             total_doors = int(df_filtered["Numeric_Total"].sum())
@@ -143,10 +142,8 @@ if not df.empty:
             
             def match_plot(val):
                 if pd.isna(val): return False
-                cell_plots = [m.upper() for m in re.findall(r'PLOT\s*\d+', str(val), re.IGNORECASE)]
-                if not cell_plots:
-                    cell_plots = [t.upper() for t in re.split(r'[\s,\n]+', str(val))]
-                return selected_plot.upper() in cell_plots
+                # Direct case-insensitive substring check for the selected plot name
+                return selected_plot.upper() in str(val).upper()
 
             df_filtered = df[df[plot_col].apply(match_plot)]
             total_doors = int(df_filtered["Numeric_Total"].sum())
