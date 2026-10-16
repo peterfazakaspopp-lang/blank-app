@@ -139,4 +139,7 @@ if not df.empty:
 
                 matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
                 if not matching_rows.empty:
-                    row_data = matching_
+                    row_data = matching_rows.iloc[0]
+
+                    st.divider()
+                    st.subheader(f"Parameters for INDICATIV: {
