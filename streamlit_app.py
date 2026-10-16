@@ -29,8 +29,6 @@ if not df.empty:
     type_col = "TIP" if "TIP" in df.columns else df.columns[1]
     mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
     fire_col = "REZISTENTA FOC" if "REZISTENTA FOC" in df.columns else None
-    room_from_col = "AS_LINKED-FROM" if "AS_LINKED-FROM" in df.columns else None
-    room_to_col = "AS_LINKED-TO" if "AS_LINKED-TO" in df.columns else None
 
     df["Clean_Family"] = df[fam_col].astype(str).str.upper()
     df["Clean_Type"] = df[type_col].astype(str).str.upper()
@@ -62,12 +60,6 @@ if not df.empty:
     req_mda = st.sidebar.checkbox("MDA (DESCHIDERE AUTOMATA)")
     req_er = st.sidebar.checkbox("ER (ELECTROMAGNET)")
 
-    # --- ROOM-BASED SEARCH SECTION ---
-    st.sidebar.markdown("---")
-    st.sidebar.subheader("🚪 Room-Based Search")
-    room_from_query = st.sidebar.text_input("From Room (AS_LINKED-FROM):", "").strip().lower()
-    room_to_query = st.sidebar.text_input("To Room (AS_LINKED-TO):", "").strip().lower()
-
     search_triggered = st.sidebar.button("🔎 Search Door Configuration")
     if search_triggered:
         st.session_state.search_active = True
@@ -87,14 +79,8 @@ if not df.empty:
         if selected_fire != "All" and fire_col:
             sub_df = sub_df[sub_df[fire_col].astype(str).str.lower() == selected_fire.lower()]
 
-        if room_from_query and room_from_col:
-            sub_df = sub_df[sub_df[room_from_col].astype(str).str.lower().str.contains(room_from_query, na=False)]
-
-        if room_to_query and room_to_col:
-            sub_df = sub_df[sub_df[room_to_col].astype(str).str.lower().str.contains(room_to_query, na=False)]
-
         if sub_df.empty:
-            st.warning(f"❌ **No doors found** matching your criteria for family '{selected_sidebar_family}'.")
+            st.warning(f"❌ **The door type does not exist** for family '{selected_sidebar_family}' with dimensions matching '{dim_query}' and fire rating '{selected_fire}'.")
         else:
             matched_rows = []
             for _, r in sub_df.iterrows():
@@ -108,58 +94,16 @@ if not df.empty:
                     matched_rows.append(r)
 
             if matched_rows:
-                st.success(f"✅ Found {len(matched_rows)} matching door instance(s)!")
+                st.success(f"✅ Found {len(matched_rows)} matching door instance(s) with the exact parameter configuration!")
                 for m_row in matched_rows:
-                    rf_val = m_row.get(room_from_col, 'N/A') if room_from_col else 'N/A'
-                    rt_val = m_row.get(room_to_col, 'N/A') if room_to_col else 'N/A'
-                    st.info(f"**Type**: `{m_row.get(type_col, 'N/A')}`  |  **INDICATIV**: `{m_row.get(mark_col, 'N/A')}`  |  *From*: `{rf_val}` ➔ *To*: `{rt_val}`")
+                    st.info(f"**Type**: `{m_row.get(type_col, 'N/A')}`  |  **INDICATIV**: `{m_row.get(mark_col, 'N/A')}`")
             else:
-                st.info(f"⚠️ **The door type exists** with those dimensions/rooms, **but not with all the specific parameters selected**. It needs another code (INDICATIV).")
-                with st.expander("View available types matching these filters"):
+                st.info(f"⚠️ **The door type exists** with those dimensions/fire rating, **but not with all the specific parameters selected**. It needs another code (INDICATIV).")
+                with st.expander("View available types with these dimensions/fire rating"):
                     for _, r in sub_df.iterrows():
                         st.text(f"• Type: {r.get(type_col, 'N/A')} | INDICATIV: {r.get(mark_col, 'N/A')}")
     else:
         st.subheader("🗂️ Hierarchical Door Explorer")
         
         selected_main_family = st.selectbox("Family:", families)
-        df_fam = df[df["Clean_Family"] == selected_main_family]
-
-        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
-        if types_in_fam:
-            selected_type = st.selectbox("Type:", types_in_fam)
-            df_type = df_fam[df_fam["Clean_Type"] == selected_type]
-
-            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
-            if door_marks:
-                selected_door = st.selectbox("INDICATIV:", door_marks)
-
-                matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
-                if not matching_rows.empty:
-                    row_data = matching_rows.iloc[0]
-
-                    st.divider()
-                    st.subheader(f"Parameters for INDICATIV: {selected_door}")
-
-                    parameters = ["BA", "CA", "YM", "MDA", "ER"]
-                    param_descriptions = {
-                        "BA": "BARA ANTIPANICA",
-                        "CA": "CONTROL ACCES",
-                        "YM": "YALA MASTERKEY",
-                        "MDA": "DESCHIDERE AUTOMATA INCENDIU",
-                        "ER": "ELECTROMAGNET DE RETINERE"
-                    }
-                    
-                    cols = st.columns(len(parameters))
-                    for i, param in enumerate(parameters):
-                        checked = is_checked(row_data.get(param, ""))
-                        status_icon = "✅" if checked else "❌"
-                        desc = param_descriptions.get(param, "")
-                        
-                        cols[i].markdown(
-                            f"**{param}**: {status_icon}<br>"
-                            f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
-                            unsafe_allow_html=True
-                        )
-
-                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
-                        st.write(row_data.to_dict())
+        df_fam = df
