@@ -144,4 +144,110 @@ if not df.empty:
 
                 door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
                 if door_marks:
-                    selected_door = st.selectbox("INDICATIV
+                    selected_door = st.selectbox("INDICATIV:", door_marks)
+
+                    matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
+                    if not matching_rows.empty:
+                        row_data = matching_rows.iloc[0]
+
+                        st.divider()
+                        st.subheader(f"Parameters for INDICATIV: {selected_door}")
+
+                        parameters = ["BA", "CA", "YM", "MDA", "ER"]
+                        param_descriptions = {
+                            "BA": "BARA ANTIPANICA",
+                            "CA": "CONTROL ACCES",
+                            "YM": "YALA MASTERKEY",
+                            "MDA": "DESCHIDERE AUTOMATA INCENDIU",
+                            "ER": "ELECTROMAGNET DE RETINERE"
+                        }
+                        
+                        cols = st.columns(len(parameters))
+                        for i, param in enumerate(parameters):
+                            checked = is_checked(row_data.get(param, ""))
+                            status_icon = "✅" if checked else "❌"
+                            desc = param_descriptions.get(param, "")
+                            
+                            cols[i].markdown(
+                                f"**{param}**: {status_icon}<br>"
+                                f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
+                                unsafe_allow_html=True
+                            )
+
+                        with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
+                            st.write(row_data.to_dict())
+
+    with side_col:
+        st.subheader("📍 Quick Availability")
+        
+        total_schedule_instances = int(df["Numeric_Total"].sum())
+        unique_rows = len(df)
+        st.info(f"📊 **Model Summary**\n\n• Table Rows: {unique_rows}\n• Total Schedule Instances: {total_schedule_instances}")
+        
+        filter_mode = st.radio("Group By:", ["Floor (NIVEL)", "PLOT number"])
+
+        if filter_mode == "Floor (NIVEL)" and nivel_col:
+            individual_levels = set()
+            for l_str in df[nivel_col].dropna().astype(str):
+                for line in l_str.replace(";", "\n").split("\n"):
+                    clean_line = re.sub(r'\s*\(\d+\)$', '', line).strip()
+                    if clean_line:
+                        for token in clean_line.split():
+                            if token.upper() not in ["ETAJ", "SUBSOL"]:
+                                individual_levels.add(token.upper())
+            
+            levels = sorted(list(individual_levels))
+            selected_level = st.selectbox("Select Floor:", levels)
+            
+            def match_floor(val):
+                if pd.isna(val): return False
+                return selected_level.upper() in str(val).upper()
+
+            df_filtered = df[df[nivel_col].apply(match_floor)]
+            total_doors = int(df_filtered["Numeric_Total"].sum())
+
+            st.write(f"**Doors on {selected_level} (Total Instances: {total_doors}):**")
+            
+            if not df_filtered.empty:
+                grouped_df = df_filtered.groupby([mark_col, type_col], as_index=False)["Numeric_Total"].sum()
+                for _, r in grouped_df.iterrows():
+                    qty = int(r["Numeric_Total"])
+                    st.text(f"• {r[mark_col]} ({r[type_col]}) [Qty: {qty}]")
+
+        elif filter_mode == "PLOT number":
+            available_cols = list(df.columns)
+            default_idx = available_cols.index("FT RAL") if "FT RAL" in available_cols else 0
+            selected_plot_col = st.selectbox("Select Plot Column:", available_cols, index=default_idx)
+
+            individual_plots = set()
+            for p_str in df[selected_plot_col].dropna().astype(str):
+                matches = re.findall(r'PLOT\s*\d+', p_str, re.IGNORECASE)
+                if matches:
+                    for m in matches:
+                        individual_plots.add(m.upper())
+                else:
+                    for token in p_str.replace(";", ",").replace("\n", " ").split():
+                        if token.strip():
+                            individual_plots.add(token.strip().upper())
+            
+            plots = sorted(list(individual_plots))
+            if plots:
+                selected_plot = st.selectbox("Select PLOT:", plots)
+                
+                def match_plot(val):
+                    if pd.isna(val): return False
+                    pattern = r'\b' + re.escape(selected_plot) + r'\b'
+                    return bool(re.search(pattern, str(val), re.IGNORECASE))
+
+                df_filtered = df[df[selected_plot_col].apply(match_plot)]
+                total_doors = int(df_filtered["Numeric_Total"].sum())
+
+                st.write(f"**Doors in {selected_plot} (Total Instances: {total_doors}):**")
+                
+                if not df_filtered.empty:
+                    grouped_df = df_filtered.groupby([mark_col, type_col], as_index=False)["Numeric_Total"].sum()
+                    for _, r in grouped_df.iterrows():
+                        qty = int(r["Numeric_Total"])
+                        st.text(f"• {r[mark_col]} ({r[type_col]}) [Qty: {qty}]")
+            else:
+                st.warning("No plot values detected in the selected column. Please choose the correct column above.")
