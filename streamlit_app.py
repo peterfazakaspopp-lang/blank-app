@@ -96,14 +96,47 @@ if not df.empty:
             if matched_rows:
                 st.success(f"✅ Found {len(matched_rows)} matching door instance(s) with the exact parameter configuration!")
                 for m_row in matched_rows:
-                    st.info(f"**Type**: `{m_row.get(type_col, 'N/A')}`  |  **INDICATIV**: `{m_row.get(mark_col, 'N/A')}`")
+                    t_val = m_row.get(type_col, 'N/A')
+                    m_val = m_row.get(mark_col, 'N/A')
+                    
+                    ba_icon = "✅" if is_checked(m_row.get("BA", "")) else "❌"
+                    ca_icon = "✅" if is_checked(m_row.get("CA", "")) else "❌"
+                    ym_icon = "✅" if is_checked(m_row.get("YM", "")) else "❌"
+                    mda_icon = "✅" if is_checked(m_row.get("MDA", "")) else "❌"
+                    er_icon = "✅" if is_checked(m_row.get("ER", "")) else "❌"
+
+                    st.info(
+                        f"**Type**: `{t_val}`  |  **INDICATIV**: `{m_val}`<br>"
+                        f"&nbsp;&nbsp;&nbsp;&nbsp;**BA**: {ba_icon} &nbsp;|&nbsp; **CA**: {ca_icon} &nbsp;|&nbsp; **YM**: {ym_icon} &nbsp;|&nbsp; **MDA**: {mda_icon} &nbsp;|&nbsp; **ER**: {er_icon}",
+                        icon="🚪"
+                    )
             else:
                 st.info(f"⚠️ **The door type exists** with those dimensions/fire rating, **but not with all the specific parameters selected**. It needs another code (INDICATIV).")
                 with st.expander("View available types with these dimensions/fire rating"):
                     for _, r in sub_df.iterrows():
-                        st.text(f"• Type: {r.get(type_col, 'N/A')} | INDICATIV: {r.get(mark_col, 'N/A')}")
+                        t_val = r.get(type_col, 'N/A')
+                        m_val = r.get(mark_col, 'N/A')
+                        ba_icon = "✅" if is_checked(r.get("BA", "")) else "❌"
+                        ca_icon = "✅" if is_checked(r.get("CA", "")) else "❌"
+                        ym_icon = "✅" if is_checked(r.get("YM", "")) else "❌"
+                        mda_icon = "✅" if is_checked(r.get("MDA", "")) else "❌"
+                        er_icon = "✅" if is_checked(r.get("ER", "")) else "❌"
+                        st.text(f"• Type: {t_val} | INDICATIV: {m_val} [BA:{ba_icon} CA:{ca_icon} YM:{ym_icon} MDA:{mda_icon} ER:{er_icon}]")
     else:
         st.subheader("🗂️ Hierarchical Door Explorer")
         
         selected_main_family = st.selectbox("Family:", families)
-        df_fam = df
+        df_fam = df[df["Clean_Family"] == selected_main_family]
+
+        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
+        if types_in_fam:
+            selected_type = st.selectbox("Type:", types_in_fam)
+            df_type = df_fam[df_fam["Clean_Type"] == selected_type]
+
+            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
+            if door_marks:
+                selected_door = st.selectbox("INDICATIV:", door_marks)
+
+                matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
+                if not matching_rows.empty:
+                    row_data = matching_
