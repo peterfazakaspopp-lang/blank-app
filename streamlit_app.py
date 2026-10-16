@@ -43,13 +43,13 @@ if not df.empty:
     st.sidebar.subheader("🔍 Advanced Door Search")
     
     families = sorted([x for x in df["Clean_Family"].dropna().unique() if x.strip() and "TOTAL" not in x and "LINKED REVIT MODEL" not in x])
-    selected_family = st.sidebar.selectbox("Select Family:", families)
+    selected_sidebar_family = st.sidebar.selectbox("Select Family for Search:", families)
     
-    df_fam = df[df["Clean_Family"] == selected_family]
+    df_sidebar_fam = df[df["Clean_Family"] == selected_sidebar_family]
 
     dim_query = st.sidebar.text_input("Dimension Search (e.g., 1000x2160):", "").strip().lower()
 
-    fire_ratings = ["All"] + sorted([str(x) for x in df_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col else ["All"]
+    fire_ratings = ["All"] + sorted([str(x) for x in df_sidebar_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col else ["All"]
     selected_fire = st.sidebar.selectbox("Fire Rating / Type (UM, UM-C, EI60, etc.):", fire_ratings)
 
     st.sidebar.markdown("---")
@@ -64,15 +64,15 @@ if not df.empty:
     if search_triggered:
         st.session_state.search_active = True
 
-    # Main view uses full width now
+    # --- MAIN VIEW ---
     if st.session_state.search_active:
         if st.button("🔙 Back to Hierarchical Explorer"):
             st.session_state.search_active = False
             st.rerun()
 
-        st.subheader(f"Search Results for Family: {selected_family}")
+        st.subheader(f"Search Results for Family: {selected_sidebar_family}")
         
-        sub_df = df_fam.copy()
+        sub_df = df_sidebar_fam.copy()
         if dim_query:
             sub_df = sub_df[sub_df["Clean_Type"].str.lower().str.contains(dim_query, na=False)]
         
@@ -80,7 +80,7 @@ if not df.empty:
             sub_df = sub_df[sub_df[fire_col].astype(str).str.lower() == selected_fire.lower()]
 
         if sub_df.empty:
-            st.warning(f"❌ **The door type does not exist** for family '{selected_family}' with dimensions matching '{dim_query}' and fire rating '{selected_fire}'.")
+            st.warning(f"❌ **The door type does not exist** for family '{selected_sidebar_family}' with dimensions matching '{dim_query}' and fire rating '{selected_fire}'.")
         else:
             matched_rows = []
             for _, r in sub_df.iterrows():
@@ -104,6 +104,11 @@ if not df.empty:
                         st.text(f"• Type: {r.get(type_col, 'N/A')} | INDICATIV: {r.get(mark_col, 'N/A')}")
     else:
         st.subheader("🗂️ Hierarchical Door Explorer")
+        
+        # Restore family selection dropdown for the explorer
+        selected_main_family = st.selectbox("Family:", families)
+        df_fam = df[df["Clean_Family"] == selected_main_family]
+
         types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
         if types_in_fam:
             selected_type = st.selectbox("Type:", types_in_fam)
