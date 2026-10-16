@@ -20,6 +20,10 @@ def load_data():
 
 df = load_data()
 
+# Initialize session state for search mode
+if "search_active" not in st.session_state:
+    st.session_state.search_active = False
+
 if not df.empty:
     fam_col = "Family" if "Family" in df.columns else df.columns[0]
     type_col = "TIP" if "TIP" in df.columns else df.columns[1]
@@ -50,10 +54,8 @@ if not df.empty:
     
     df_fam = df[df["Clean_Family"] == selected_family]
 
-    # Dimension search input (e.g. 1000x2160 or part of it)
     dim_query = st.sidebar.text_input("Dimension Search (e.g., 1000x2160):", "").strip().lower()
 
-    # Fire rating filter options
     fire_ratings = ["All"] + sorted([str(x) for x in df_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col else ["All"]
     selected_fire = st.sidebar.selectbox("Fire Rating / Type (UM, UM-C, EI60, etc.):", fire_ratings)
 
@@ -66,14 +68,20 @@ if not df.empty:
     req_er = st.sidebar.checkbox("ER (ELECTROMAGNET)")
 
     search_triggered = st.sidebar.button("🔎 Search Door Configuration")
+    if search_triggered:
+        st.session_state.search_active = True
 
     main_col, side_col = st.columns([2, 1])
 
     with main_col:
-        if search_triggered:
+        if st.session_state.search_active:
+            # Back button to return to the explorer view
+            if st.button("🔙 Back to Hierarchical Explorer"):
+                st.session_state.search_active = False
+                st.rerun()
+
             st.subheader(f"Search Results for Family: {selected_family}")
             
-            # Filter by family & dimensions if provided
             sub_df = df_fam.copy()
             if dim_query:
                 sub_df = sub_df[sub_df["Clean_Type"].str.lower().str.contains(dim_query, na=False)]
@@ -84,7 +92,6 @@ if not df.empty:
             if sub_df.empty:
                 st.warning(f"❌ **The door type does not exist** for family '{selected_family}' with dimensions matching '{dim_query}' and fire rating '{selected_fire}'.")
             else:
-                # Check parameter matches among filtered rows
                 matched_rows = []
                 for _, r in sub_df.iterrows():
                     match_ba = is_checked(r.get("BA", "")) == req_ba
