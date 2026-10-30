@@ -25,14 +25,13 @@ if "search_active" not in st.session_state:
     st.session_state.search_active = False
 
 if not df.empty:
-    # Robust column detection with safety fallbacks to prevent IndexError
-    fam_col = "Family" if "Family" in df.columns else (df.columns[0] if len(df.columns) > 0 else None)
-    type_col = "TIP" if "TIP" in df.columns else (df.columns[1] if len(df.columns) > 1 else fam_col)
-    mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else (df.columns[3] if len(df.columns) > 3 else (df.columns[2] if len(df.columns) > 2 else fam_col))
+    fam_col = "Family" if "Family" in df.columns else df.columns[0]
+    type_col = "TIP" if "TIP" in df.columns else df.columns[1]
+    mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
     fire_col = "REZISTENTA FOC" if "REZISTENTA FOC" in df.columns else None
 
-    df["Clean_Family"] = df[fam_col].astype(str).str.upper() if fam_col else ""
-    df["Clean_Type"] = df[type_col].astype(str).str.upper() if type_col else ""
+    df["Clean_Family"] = df[fam_col].astype(str).str.upper()
+    df["Clean_Type"] = df[type_col].astype(str).str.upper()
 
     def is_checked(val):
         if pd.isna(val):
@@ -44,13 +43,13 @@ if not df.empty:
     st.sidebar.subheader("🔍 Advanced Door Search")
     
     families = sorted([x for x in df["Clean_Family"].dropna().unique() if x.strip() and "TOTAL" not in x and "LINKED REVIT MODEL" not in x])
-    selected_sidebar_family = st.sidebar.selectbox("Select Family for Search:", families) if families else ""
+    selected_sidebar_family = st.sidebar.selectbox("Select Family for Search:", families)
     
-    df_sidebar_fam = df[df["Clean_Family"] == selected_sidebar_family] if selected_sidebar_family else pd.DataFrame()
+    df_sidebar_fam = df[df["Clean_Family"] == selected_sidebar_family]
 
     dim_query = st.sidebar.text_input("Dimension Search (e.g., 1000x2160):", "").strip().lower()
 
-    fire_ratings = ["All"] + sorted([str(x) for x in df_sidebar_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col and not df_sidebar_fam.empty else ["All"]
+    fire_ratings = ["All"] + sorted([str(x) for x in df_sidebar_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col else ["All"]
     selected_fire = st.sidebar.selectbox("Fire Rating / Type (UM, UM-C, EI60, etc.):", fire_ratings)
 
     st.sidebar.markdown("---")
@@ -126,15 +125,15 @@ if not df.empty:
     else:
         st.subheader("🗂️ Hierarchical Door Explorer")
         
-        selected_main_family = st.selectbox("Family:", families) if families else ""
-        df_fam = df[df["Clean_Family"] == selected_main_family] if selected_main_family else pd.DataFrame()
+        selected_main_family = st.selectbox("Family:", families)
+        df_fam = df[df["Clean_Family"] == selected_main_family]
 
-        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()]) if not df_fam.empty else []
+        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
         if types_in_fam:
             selected_type = st.selectbox("Type:", types_in_fam)
             df_type = df_fam[df_fam["Clean_Type"] == selected_type]
 
-            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()]) if mark_col in df_type.columns else []
+            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
             if door_marks:
                 selected_door = st.selectbox("INDICATIV:", door_marks)
 
