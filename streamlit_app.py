@@ -1,7 +1,9 @@
 import streamlit as st
 import pandas as pd
 import os
-import re
+import json
+import urllib.request
+import urllib.error
 
 st.set_page_config(layout="wide")
 st.title("ASX_UM_XX_ALL")
@@ -171,7 +173,7 @@ if not df.empty:
                     with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
                         st.write(row_data.to_dict())
 
-# --- OPENAI Q&A CHAT COMPONENT (SAFE LAZY LOAD) ---
+# --- OPENAI Q&A CHAT COMPONENT (USING NATIVE PYTHON HTTP - ZERO DEPENDENCIES) ---
 st.markdown("---")
 st.subheader("💬 Project Code & Data Assistant")
 
@@ -180,59 +182,69 @@ api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
 if not api_key:
     st.info("💡 To enable the AI chat assistant, please configure your `OPENAI_API_KEY` in `.streamlit/secrets.toml` or your environment variables.")
 else:
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=api_key)
+    for msg in st.session_state.chat_messages:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
 
+    user_query = st.chat_input("Ask a question about your doors, scripts, or project files...")
+
+    if user_query:
+        st.session_state.chat_messages.append({"role": "user", "content": user_query})
+        with st.chat_message("user"):
+            st.write(user_query)
+
+        context_data = ""
+        target_files = ["PLOT_MASTER.tsv", "streamlit_app.py", "README.md"]
+        
+        for file_name in target_files:
+            if os.path.exists(file_name):
+                try:
+                    with open(file_name, "r", encoding="utf-8-sig") as f:
+                        content = f.read()
+                        context_data += f"\n--- File: {file_name} ---\n{content[:4000]}\n"
+                except Exception:
+                    pass
+
+        system_prompt = (
+            "You are an expert AI assistant helping an architect audit Revit door clearances and project data. "
+            "Answer the user's question using ONLY the provided project file context below. "
+            "Always cite the file path or data source you used in your answer. "
+            "If the answer cannot be found in the context, explicitly state that you cannot find the answer based on the current data."
+        )
+
+        api_messages = [{"role": "system", "content": system_prompt}]
         for msg in st.session_state.chat_messages:
-            with st.chat_message(msg["role"]):
-                st.write(msg["content"])
+            api_messages.append({"role": msg["role"], "content": msg["content"]})
+        
+        api_messages.append({"role": "user", "content": f"Project Context:\n{context_data}\n\nUser Question: {user_query}"})
 
-        user_query = st.chat_input("Ask a question about your doors, scripts, or project files...")
+        with st.chat_message("assistant"):
+            with st.spinner("Analyzing project data..."):
+                try:
+                    req_data = json.dumps({
+                        "model": "gpt-4o-mini",
+                        "messages": api_messages,
+                        "temperature": 0.2
+                    }).encode("utf-8")
 
-        if user_query:
-            st.session_state.chat_messages.append({"role": "user", "content": user_query})
-            with st.chat_message("user"):
-                st.write(user_query)
+                    req = urllib.request.Request(
+                        "https://api.openai.com/v1/chat/completions",
+                        data=req_data,
+                        headers={
+                            "Content-Type": "application/json",
+                            "Authorization": f"Bearer {api_key}"
+                        },
+                        method="POST"
+                    )
 
-            context_data = ""
-            target_files = ["PLOT_MASTER.tsv", "streamlit_app.py", "README.md"]
-            
-            for file_name in target_files:
-                if os.path.exists(file_name):
-                    try:
-                        with open(file_name, "r", encoding="utf-8-sig") as f:
-                            content = f.read()
-                            context_data += f"\n--- File: {file_name} ---\n{content[:5000]}\n"
-                    except Exception:
-                        pass
-
-            system_prompt = (
-                "You are an expert AI assistant helping an architect audit Revit door clearances and project data. "
-                "Answer the user's question using ONLY the provided project file context below. "
-                "Always cite the file path or data source you used in your answer. "
-                "If the answer cannot be found in the context, explicitly state that you cannot find the answer based on the current data."
-            )
-
-            messages = [{"role": "system", "content": system_prompt}]
-            for msg in st.session_state.chat_messages:
-                messages.append({"role": msg["role"], "content": msg["content"]})
-            
-            messages.append({"role": "user", "content": f"Project Context:\n{context_data}\n\nUser Question: {user_query}"})
-
-            with st.chat_message("assistant"):
-                with st.spinner("Analyzing project data..."):
-                    try:
-                        response = client.chat.completions.create(
-                            model="gpt-4o-mini",
-                            messages=messages,
-                            temperature=0.2
-                        )
-                        answer = response.choices[0].message.content
+                    with urllib.request.urlopen(req) as resp:
+                        res_body = json.loads(resp.read().decode("utf-8"))
+                        answer = res_body["choices"][0]["message"]["content"]
                         st.write(answer)
                         st.session_state.chat_messages.append({"role": "assistant", "content": answer})
-                    except Exception as e:
-                        st.error(f"Error communicating with OpenAI API: {e}")
 
-    except ImportError:
-        st.warning("⚠️ The `openai` library is currently installing or missing. Please ensure `requirements.txt` is in your repository root with `openai>=1.0.0`, then click **Reboot app** in Streamlit Cloud.")
+                except urllib.error.HTTPError as e:
+                    error_body = e.read().decode("utf-8")
+                    st.error(f"OpenAI API Error ({e.code}): {error_body}")
+                except Exception as e:
+                    st.error(f"Error communicating with OpenAI API: {e}")
