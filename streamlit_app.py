@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 import re
+from openai import OpenAI
 
 st.set_page_config(layout="wide")
 st.title("ASX_UM_XX_ALL")
@@ -20,9 +21,12 @@ def load_data():
 
 df = load_data()
 
-# Initialize session state for search mode
+# Initialize session states
 if "search_active" not in st.session_state:
     st.session_state.search_active = False
+
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
 
 if not df.empty:
     fam_col = "Family" if "Family" in df.columns else df.columns[0]
@@ -103,129 +107,4 @@ if not df.empty:
                     ca_icon = "✅" if is_checked(m_row.get("CA", "")) else "❌"
                     ym_icon = "✅" if is_checked(m_row.get("YM", "")) else "❌"
                     mda_icon = "✅" if is_checked(m_row.get("MDA", "")) else "❌"
-                    er_icon = "✅" if is_checked(m_row.get("ER", "")) else "❌"
-
-                    st.info(
-                        f"**Type**: `{t_val}`  |  **INDICATIV**: `{m_val}`<br>"
-                        f"&nbsp;&nbsp;&nbsp;&nbsp;**BA**: {ba_icon} &nbsp;|&nbsp; **CA**: {ca_icon} &nbsp;|&nbsp; **YM**: {ym_icon} &nbsp;|&nbsp; **MDA**: {mda_icon} &nbsp;|&nbsp; **ER**: {er_icon}",
-                        icon="🚪"
-                    )
-            else:
-                st.info(f"⚠️ **The door type exists** with those dimensions/fire rating, **but not with all the specific parameters selected**. It needs another code (INDICATIV).")
-                with st.expander("View available types with these dimensions/fire rating"):
-                    for _, r in sub_df.iterrows():
-                        t_val = r.get(type_col, 'N/A')
-                        m_val = r.get(mark_col, 'N/A')
-                        ba_icon = "✅" if is_checked(r.get("BA", "")) else "❌"
-                        ca_icon = "✅" if is_checked(r.get("CA", "")) else "❌"
-                        ym_icon = "✅" if is_checked(r.get("YM", "")) else "❌"
-                        mda_icon = "✅" if is_checked(r.get("MDA", "")) else "❌"
-                        er_icon = "✅" if is_checked(r.get("ER", "")) else "❌"
-                        st.text(f"• Type: {t_val} | INDICATIV: {m_val} [BA:{ba_icon} CA:{ca_icon} YM:{ym_icon} MDA:{mda_icon} ER:{er_icon}]")
-    else:
-        st.subheader("🗂️ Hierarchical Door Explorer")
-        
-        selected_main_family = st.selectbox("Family:", families)
-        df_fam = df[df["Clean_Family"] == selected_main_family]
-
-        types_in_fam = sorted([x for x in df_fam["Clean_Type"].dropna().unique() if x.strip()])
-        if types_in_fam:
-            selected_type = st.selectbox("Type:", types_in_fam)
-            df_type = df_fam[df_fam["Clean_Type"] == selected_type]
-
-            door_marks = sorted([str(x) for x in df_type[mark_col].dropna().unique() if str(x).strip()])
-            if door_marks:
-                selected_door = st.selectbox("INDICATIV:", door_marks)
-
-                matching_rows = df_type[df_type[mark_col].astype(str) == selected_door]
-                if not matching_rows.empty:
-                    row_data = matching_rows.iloc[0]
-
-                    st.divider()
-                    st.subheader(f"Parameters for INDICATIV: {selected_door}")
-
-                    parameters = ["BA", "CA", "YM", "MDA", "ER"]
-                    param_descriptions = {
-                        "BA": "BARA ANTIPANICA",
-                        "CA": "CONTROL ACCES",
-                        "YM": "YALA MASTERKEY",
-                        "MDA": "DESCHIDERE AUTOMATA INCENDIU",
-                        "ER": "ELECTROMAGNET DE RETINERE"
-                    }
-                    
-                    cols = st.columns(len(parameters))
-                    for i, param in enumerate(parameters):
-                        checked = is_checked(row_data.get(param, ""))
-                        status_icon = "✅" if checked else "❌"
-                        desc = param_descriptions.get(param, "")
-                        
-                        cols[i].markdown(
-                            f"**{param}**: {status_icon}<br>"
-                            f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
-                            unsafe_allow_html=True
-                        )
-
-                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
-                        st.write(row_data.to_dict())
-import os
-from openai import OpenAI
-
-# --- OPENAI Q&A CHAT COMPONENT ---
-st.markdown("---")
-st.subheader("💬 Project Code & Data Assistant")
-
-# Initialize OpenAI client using Streamlit secrets or environment variables
-api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
-
-if not api_key:
-    st.info("💡 To enable the AI chat assistant, please configure your `OPENAI_API_KEY` in `.streamlit/secrets.toml` or your environment variables.")
-else:
-    client = OpenAI(api_key=api_key)
-
-    # Chat input for user queries
-    user_query = st.chat_input("Ask a question about your doors, scripts, or project files (e.g., 'Which doors have less than 7cm clearance?')...")
-
-    if user_query:
-        with st.chat_message("user"):
-            st.write(user_query)
-
-        # Gather context from local files if available (e.g., PLOT_MASTER.tsv or python scripts)
-        context_data = ""
-        target_files = ["PLOT_MASTER.tsv"]
-        
-        for file_ name in target_files:
-            if os.path.exists(file_name):
-                try:
-                    with open(file_name, "r", encoding="utf-8-sig") as f:
-                        # Read snippet or summary to avoid overloading context limit
-                        content = f.read()
-                        context_data += f"\n--- File: {file_name} ---\n{content[:5000]}" # Truncate if too long
-                except Exception as e:
-                    pass
-
-        # Prompt engineering providing context and source citation requirements
-        system_prompt = (
-            "You are an expert AI assistant helping an architect audit Revit door clearances and project data. "
-            "Answer the user's question using ONLY the provided project file context below. "
-            "Always cite the file path or data source you used in your answer. "
-            "If the answer cannot be found in the context, explicitly state that you cannot find the answer based on the current data."
-        )
-
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Project Context:\n{context_data}\n\nUser Question: {user_query}"}
-        ]
-
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing project data..."):
-                try:
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini", # or gpt-4o
-                        messages=messages,
-                        temperature=0.2
-                    )
-                    answer = response.choices[0].message.content
-                    st.write(answer)
-                except Exception as e:
-                    st.error(f"Error communicating with OpenAI API: {e}")
-
+                    er_icon = "✅" if is_checked(m_row.get("ER", "")) else "❌
