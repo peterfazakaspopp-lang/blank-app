@@ -100,41 +100,4 @@ def load_data():
             df = df[~df["Family"].astype(str).str.contains("Grand total|Total|Family|Linked Revit Model", case=False, na=False)]
         return df
     else:
-        st.error(f"File not found: {file_path}. Please upload PLOT_MASTER.tsv to your GitHub repository.")
-        return pd.DataFrame()
-
-df = load_data()
-
-if not df.empty:
-    fam_col = "Family" if "Family" in df.columns else df.columns[0]
-    type_col = "TIP" if "TIP" in df.columns else df.columns[1]
-    mark_col = "INDICATIV USA" if "INDICATIV USA" in df.columns else df.columns[3]
-    fire_col = "REZISTENTA FOC" if "REZISTENTA FOC" in df.columns else None
-
-    df["Clean_Family"] = df[fam_col].astype(str).str.upper()
-    df["Clean_Type"] = df[type_col].astype(str).str.upper()
-
-    def is_checked(val):
-        if pd.isna(val):
-            return False
-        v_str = str(val).strip().lower()
-        return v_str in ["✓", "yes", "da", "1", "true", "x"]
-
-    # --- SIDEBAR SEARCH & NAVIGATION ---
-    st.sidebar.subheader("🔍 Advanced Door Search")
-    
-    families = sorted([x for x in df["Clean_Family"].dropna().unique() if x.strip() and "TOTAL" not in x and "LINKED REVIT MODEL" not in x])
-    selected_sidebar_family = st.sidebar.selectbox("Select Family for Search:", families)
-    
-    df_sidebar_fam = df[df["Clean_Family"] == selected_sidebar_family]
-
-    dim_query = st.sidebar.text_input("Dimension Search (e.g., 1000x2160):", "").strip().lower()
-
-    fire_ratings = ["All"] + sorted([str(x) for x in df_sidebar_fam[fire_col].dropna().unique() if str(x).strip()]) if fire_col else ["All"]
-    selected_fire = st.sidebar.selectbox("Fire Rating / Type (UM, UM-C, EI60, etc.):", fire_ratings)
-
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**Required Parameters:**")
-    req_ba = st.sidebar.checkbox("BA (BARA ANTIPANICA)")
-    req_ca = st.sidebar.checkbox("CA (CONTROL ACCES)")
-    req
+        st.error(f"File not found: {file_path}.
