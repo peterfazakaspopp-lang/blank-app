@@ -60,14 +60,14 @@ else:
 
         full_prompt = f"{system_prompt}\n\nProject Context:\n{context_data}\n\nUser Question: {user_query}"
 
-        try:
+       try:
             req_data = json.dumps({
                 "contents": [{
                     "parts": [{"text": full_prompt}]
                 }]
             }).encode("utf-8")
 
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-lite:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
 
             req = urllib.request.Request(
                 url,
@@ -87,7 +87,6 @@ else:
             st.error(f"Gemini API Error ({e.code}): {error_body}")
         except Exception as e:
             st.error(f"Error communicating with Gemini API: {e}")
-
 st.markdown("---")
 
 # --- DOOR DATA EXPLORER ---
