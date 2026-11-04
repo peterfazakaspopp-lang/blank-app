@@ -34,6 +34,93 @@ import urllib.error
 st.set_page_config(layout="wide")
 st.title("ASX_UM_XX_ALL")
 
+# --- FLOATING HELP ICON WITH HOVER TOOLTIP ---
+st.markdown("""
+<style>
+.help-container {
+    position: relative;
+    display: inline-block;
+    float: right;
+    margin-top: -45px;
+    z-index: 999;
+}
+.help-icon {
+    background-color: #ff4b4b;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+    padding: 8px 14px;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    transition: background 0.3s ease;
+}
+.help-icon:hover {
+    background-color: #ff2b2b;
+}
+.help-tooltip {
+    visibility: hidden;
+    width: 420px;
+    background-color: #1e1e1e;
+    color: #f0f2f6;
+    text-align: left;
+    border-radius: 8px;
+    padding: 15px;
+    position: absolute;
+    z-index: 1;
+    right: 0;
+    top: 125%;
+    box-shadow: 0px 8px 16px rgba(0,0,0,0.3);
+    border: 1px solid #333;
+    font-size: 13px;
+    line-height: 1.5;
+}
+.help-container:hover .help-tooltip {
+    visibility: visible;
+}
+.help-tooltip h4 {
+    margin-top: 0;
+    color: #ff4b4b;
+    font-size: 15px;
+    border-bottom: 1px solid #333;
+    padding-bottom: 5px;
+}
+.help-tooltip ul {
+    padding-left: 18px;
+    margin-bottom: 0;
+}
+.help-tooltip li {
+    margin-bottom: 6px;
+}
+</style>
+
+<div class="help-container">
+  <div class="help-icon">❓ HELP</div>
+  <div class="help-tooltip">
+    <h4>Door Categorization System</h4>
+    <p><b>1. Automated Marking & Dynamo Processing</b></p>
+    <ul>
+      <li><b>Type Marks & Standard Marks</b>: Dynamo scripts process interior doors containing "UM"/"US" to assign marks (e.g., UM1, UM2).</li>
+      <li><b>Suffix Rules</b>: If type name ends in "180", an "A" suffix is appended (e.g., UM1A).</li>
+      <li><b>Wall Type Association</b>: Automatically populates host wall types based on host IDs or spatial bounding boxes. <i>(Source: streamlit_app.py)</i></li>
+    </ul>
+    <p><b>2. Hierarchical Dashboard Structure (ASX_UM_XX_ALL)</b></p>
+    <ul>
+      <li><b>Family</b> (e.g., INT_F1_1 CANAT, INT_F2_2 CANATURI ASIMETRICE)</li>
+      <li><b>Type</b> (e.g., INT_F1_1050x2160_EI90-C_90)</li>
+      <li><b>INDICATIV / Door Mark</b> (e.g., UM70, UM131) <i>(Sources: streamlit_app.py, PLOT_MASTER.tsv)</i></li>
+    </ul>
+    <p><b>3. Filtering & Sub-categorization</b></p>
+    <ul>
+      <li><b>Opening Direction (SENS)</b>: Left (S) or Right (D).</li>
+      <li><b>Fire Resistance</b>: EI60-C, EI90-C, etc.</li>
+      <li><b>Project Plot</b>: Grouped by CLUJ_Part / Plots (1 to 5).</li>
+      <li><b>Hardware Flags</b>: BA (Panic Bar), CA (Access Control), YM (Master Key), MDA (Auto Fire Open), ER (Holding Electromagnet). <i>(Sources: streamlit_app.py, PLOT_MASTER.tsv)</i></li>
+    </ul>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+
 # Initialize session states
 if "search_active" not in st.session_state:
     st.session_state.search_active = False
