@@ -173,14 +173,14 @@ if not df.empty:
                     with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
                         st.write(row_data.to_dict())
 
-# --- OPENAI Q&A CHAT COMPONENT (USING NATIVE PYTHON HTTP - ZERO DEPENDENCIES) ---
+# --- GEMINI Q&A CHAT COMPONENT (ZERO DEPENDENCIES) ---
 st.markdown("---")
-st.subheader("💬 Project Code & Data Assistant")
+st.subheader("💬 Project Code & Data Assistant (Powered by Gemini)")
 
-api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+gemini_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
-if not api_key:
-    st.info("💡 To enable the AI chat assistant, please configure your `OPENAI_API_KEY` in `.streamlit/secrets.toml` or your environment variables.")
+if not gemini_key:
+    st.info("💡 To enable the free AI chat assistant, please configure your `GEMINI_API_KEY` in Streamlit secrets or environment variables.")
 else:
     for msg in st.session_state.chat_messages:
         with st.chat_message(msg["role"]):
@@ -193,6 +193,7 @@ else:
         with st.chat_message("user"):
             st.write(user_query)
 
+        # Gather context from project files
         context_data = ""
         target_files = ["PLOT_MASTER.tsv", "streamlit_app.py", "README.md"]
         
@@ -212,39 +213,35 @@ else:
             "If the answer cannot be found in the context, explicitly state that you cannot find the answer based on the current data."
         )
 
-        api_messages = [{"role": "system", "content": system_prompt}]
-        for msg in st.session_state.chat_messages:
-            api_messages.append({"role": msg["role"], "content": msg["content"]})
-        
-        api_messages.append({"role": "user", "content": f"Project Context:\n{context_data}\n\nUser Question: {user_query}"})
+        # Format full prompt for Gemini
+        full_prompt = f"{system_prompt}\n\nProject Context:\n{context_data}\n\nUser Question: {user_query}"
 
         with st.chat_message("assistant"):
-            with st.spinner("Analyzing project data..."):
+            with st.spinner("Analyzing project data with Gemini..."):
                 try:
                     req_data = json.dumps({
-                        "model": "gpt-4o-mini",
-                        "messages": api_messages,
-                        "temperature": 0.2
+                        "contents": [{
+                            "parts": [{"text": full_prompt}]
+                        }]
                     }).encode("utf-8")
 
+                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+
                     req = urllib.request.Request(
-                        "https://api.openai.com/v1/chat/completions",
+                        url,
                         data=req_data,
-                        headers={
-                            "Content-Type": "application/json",
-                            "Authorization": f"Bearer {api_key}"
-                        },
+                        headers={"Content-Type": "application/json"},
                         method="POST"
                     )
 
                     with urllib.request.urlopen(req) as resp:
                         res_body = json.loads(resp.read().decode("utf-8"))
-                        answer = res_body["choices"][0]["message"]["content"]
+                        answer = res_body["candidates"][0]["content"]["parts"][0]["text"]
                         st.write(answer)
                         st.session_state.chat_messages.append({"role": "assistant", "content": answer})
 
                 except urllib.error.HTTPError as e:
                     error_body = e.read().decode("utf-8")
-                    st.error(f"OpenAI API Error ({e.code}): {error_body}")
+                    st.error(f"Gemini API Error ({e.code}): {error_body}")
                 except Exception as e:
-                    st.error(f"Error communicating with OpenAI API: {e}")
+                    st.error(f"Error communicating with Gemini API: {e}")
