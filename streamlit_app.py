@@ -1,3 +1,29 @@
+# ==============================================================================
+# PROJECT KNOWLEDGE BASE: REVIT DOOR AUDIT & AUTOMATION WORKFLOWS
+# ==============================================================================
+PROJECT_DOOR_SYSTEMS_KNOWLEDGE = """
+Overview of the Revit Door Audit and Streamlit Integration Project:
+1. Data Source & Pipeline (PLOT_MASTER.tsv & A25 Family):
+   - The project centers on interior door auditing (AS_Tamplarie_interior_usi) extracted from Revit via automated Dynamo Python scripts (e.g., A25.a.p_all, Plot 1 through Plot 5 scripts).
+   - All data converges into PLOT_MASTER.tsv, which acts as the unified database consumed by the Streamlit application without requiring external Python package dependencies on Streamlit Cloud.
+
+2. Door Parameter Management & Dynamo Scripts:
+   - UM25 / UM25 180-Suffix: Scripts that process interior doors containing "UM" or "US" type marks, extract rough/clear dimensions, and assign standard door marks (UM1, UM2...). Type names ending in "180" automatically append an "A" suffix (e.g., UM1 -> UM1A).
+   - Wall Type Updater: Automatically reads host wall types (using Type Mark, Type Name, or family name) via host IDs or spatial bounding-box fallbacks and populates the "Wall Type" parameter for all doors.
+   - Clean Door Types: Cleans family type names by removing ".00" substrings.
+   - Multi-Plot Schedulers (Plot 1 - Plot 5): Specialized export scripts (PLOT_1.xls through PLOT_5.xls / TSV) that handle specific schedule views (AS_UM_PYTHON_PLOT1 to PLOT5), separate rows by opening direction (S/D), perform natural alphanumeric sorting, and format small/large leaf dimensions below the main width (`L (m)`).
+
+3. Streamlit Web Dashboard (ASX_UM_XX_ALL):
+   - Hierarchical Explorer: Allows users to drill down by Family -> Type -> INDICATIV (Door Mark) to inspect exact parameter states.
+   - Advanced Search & Hardware Verification: Filters doors by dimensions, fire ratings (REZISTENTA FOC), and critical hardware flags:
+     * BA: Bara Antipanică (Panic Bar)
+     * CA: Control Acces (Access Control)
+     * YM: Yala Masterkey (Master Key Lock)
+     * MDA: Deschidere Automată Incendiu (Automatic Fire Opening)
+     * ER: Electromagnet de Retinere (Holding Electromagnet)
+   - Integrated AI Assistant: Powered by Gemini via zero-dependency `urllib` REST calls, providing instant code and project data assistance directly at the top of the app.
+"""
+# ==============================================================================
 import streamlit as st
 import pandas as pd
 import os
