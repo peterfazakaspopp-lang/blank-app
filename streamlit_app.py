@@ -28,7 +28,7 @@ else:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    # Top-positioned input bar using text_input + button instead of bottom-anchored chat_input
+    # Top-positioned input bar using text_input + button
     with st.form(key="chat_form", clear_on_submit=True):
         col1, col2 = st.columns([6, 1])
         with col1:
@@ -60,7 +60,7 @@ else:
 
         full_prompt = f"{system_prompt}\n\nProject Context:\n{context_data}\n\nUser Question: {user_query}"
 
-       try:
+        try:
             req_data = json.dumps({
                 "contents": [{
                     "parts": [{"text": full_prompt}]
@@ -87,6 +87,7 @@ else:
             st.error(f"Gemini API Error ({e.code}): {error_body}")
         except Exception as e:
             st.error(f"Error communicating with Gemini API: {e}")
+
 st.markdown("---")
 
 # --- DOOR DATA EXPLORER ---
