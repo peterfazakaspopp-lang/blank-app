@@ -15,7 +15,7 @@ if "search_active" not in st.session_state:
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = []
 
-# --- GEMINI Q&A CHAT COMPONENT (TOP OF APP) ---
+# --- GEMINI Q&A CHAT COMPONENT (TOP CONTAINER) ---
 st.subheader("💬 Project Code & Data Assistant (Powered by Gemini)")
 
 gemini_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
@@ -23,18 +23,22 @@ gemini_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY"
 if not gemini_key:
     st.info("💡 To enable the free AI chat assistant, please configure your `GEMINI_API_KEY` in Streamlit secrets or environment variables.")
 else:
+    # Display chat history first
     for msg in st.session_state.chat_messages:
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    user_query = st.chat_input("Ask a question about your doors, scripts, or project files...")
+    # Top-positioned input bar using text_input + button instead of bottom-anchored chat_input
+    with st.form(key="chat_form", clear_on_submit=True):
+        col1, col2 = st.columns([6, 1])
+        with col1:
+            user_query = st.text_input("Ask a question about your doors, scripts, or project files...", label_visibility="collapsed", placeholder="Ask a question about your doors, scripts, or project files...")
+        with col2:
+            submit_chat = st.form_submit_button("Send 🚀", use_container_width=True)
 
-    if user_query:
+    if submit_chat and user_query:
         st.session_state.chat_messages.append({"role": "user", "content": user_query})
-        with st.chat_message("user"):
-            st.write(user_query)
 
-        # Gather context from project files
         context_data = ""
         target_files = ["PLOT_MASTER.tsv", "streamlit_app.py", "README.md"]
         
@@ -56,35 +60,33 @@ else:
 
         full_prompt = f"{system_prompt}\n\nProject Context:\n{context_data}\n\nUser Question: {user_query}"
 
-        with st.chat_message("assistant"):
-            with st.spinner("Analyzing project data with Gemini..."):
-                try:
-                    req_data = json.dumps({
-                        "contents": [{
-                            "parts": [{"text": full_prompt}]
-                        }]
-                    }).encode("utf-8")
+        try:
+            req_data = json.dumps({
+                "contents": [{
+                    "parts": [{"text": full_prompt}]
+                }]
+            }).encode("utf-8")
 
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash:generateContent?key={gemini_key}"
 
-                    req = urllib.request.Request(
-                        url,
-                        data=req_data,
-                        headers={"Content-Type": "application/json"},
-                        method="POST"
-                    )
+            req = urllib.request.Request(
+                url,
+                data=req_data,
+                headers={"Content-Type": "application/json"},
+                method="POST"
+            )
 
-                    with urllib.request.urlopen(req) as resp:
-                        res_body = json.loads(resp.read().decode("utf-8"))
-                        answer = res_body["candidates"][0]["content"]["parts"][0]["text"]
-                        st.write(answer)
-                        st.session_state.chat_messages.append({"role": "assistant", "content": answer})
+            with urllib.request.urlopen(req) as resp:
+                res_body = json.loads(resp.read().decode("utf-8"))
+                answer = res_body["candidates"][0]["content"]["parts"][0]["text"]
+                st.session_state.chat_messages.append({"role": "assistant", "content": answer})
+                st.rerun()
 
-                except urllib.error.HTTPError as e:
-                    error_body = e.read().decode("utf-8")
-                    st.error(f"Gemini API Error ({e.code}): {error_body}")
-                except Exception as e:
-                    st.error(f"Error communicating with Gemini API: {e}")
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            st.error(f"Gemini API Error ({e.code}): {error_body}")
+        except Exception as e:
+            st.error(f"Error communicating with Gemini API: {e}")
 
 st.markdown("---")
 
