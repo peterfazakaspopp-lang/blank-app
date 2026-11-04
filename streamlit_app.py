@@ -67,7 +67,7 @@ else:
                 }]
             }).encode("utf-8")
 
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={gemini_key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key={gemini_key}"
 
             req = urllib.request.Request(
                 url,
@@ -228,23 +228,4 @@ if not df.empty:
                     parameters = ["BA", "CA", "YM", "MDA", "ER"]
                     param_descriptions = {
                         "BA": "BARA ANTIPANICA",
-                        "CA": "CONTROL ACCES",
-                        "YM": "YALA MASTERKEY",
-                        "MDA": "DESCHIDERE AUTOMATA INCENDIU",
-                        "ER": "ELECTROMAGNET DE RETINERE"
-                    }
-                    
-                    cols = st.columns(len(parameters))
-                    for i, param in enumerate(parameters):
-                        checked = is_checked(row_data.get(param, ""))
-                        status_icon = "[YES]" if checked else "[NO]"
-                        desc = param_descriptions.get(param, "")
-                        
-                        cols[i].markdown(
-                            f"**{param}**: {status_icon}<br>"
-                            f"<small style='text-transform: uppercase; color: #888;'>{desc}</small>",
-                            unsafe_allow_html=True
-                        )
-
-                    with st.expander("🔍 View Raw Row Data from TSV", expanded=True):
-                        st.write(row_data.to_dict())
+                        "CA": "CONTROL ACCES
